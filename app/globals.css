@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+/* ============================================================
+   오이코스 셰어 — 디자인 토큰 (시안 mockup.html 이식)
+   따뜻한 어둠(앰버·촛불 톤) + 손글씨 폰트
+   ============================================================ */
+:root {
+  --bg: #0f1020;
+  --bg-soft: #1a1c34;
+  --card: #232544;
+  --line: #34375f;
+  --text: #eef0ff;
+  --muted: #9aa0c8;
+  --accent: #ffb454;
+  --accent2: #7c6cff;
+  --good: #5ad19a;
+  --radius: 16px;
+  --grad-night: radial-gradient(120% 100% at 50% 0%, #2a2350 0%, #14132b 55%, #0a0a18 100%);
+  /* 빔 무대 — 촛불 같은 앰버 어둠 */
+  --grad-stage: radial-gradient(140% 120% at 50% 28%, #34271c 0%, #1d150e 48%, #0c0805 100%);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-soft: var(--bg-soft);
+  --color-card: var(--card);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent2: var(--accent2);
+  --color-good: var(--good);
+  --font-hand: var(--font-gaegu);
+  --font-script: var(--font-nanum-pen);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+    "Pretendard", "Noto Sans KR", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+
+button { font-family: inherit; cursor: pointer; }
+
+/* 폰트 유틸 */
+.font-script { font-family: var(--font-nanum-pen), cursive; }
+.font-hand { font-family: var(--font-gaegu), cursive; }
+
+/* 스크롤바 살짝 정돈 */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
+
+/* ============================================================
+   빔 디스플레이 — 검은 공간에 떠다니는 사진 (프레임 없음)
+   ============================================================ */
+.stage {
+  position: relative; width: 100vw; height: 100dvh; overflow: hidden;
+  background: #000;
+}
+
+/* 프레임/캡션 없이 사진만. 가장자리는 마스크로 부드럽게 페이드 */
+.float {
+  position: absolute; left: 0; top: 0;
+  will-change: transform; transition: opacity 1s ease;
+}
+.float .ph {
+  display: block; width: 100%; object-fit: cover;
+  /* 가장자리를 여러 단계로 길게 투명화 → 검정 배경에 번지듯 녹아드는 감성 */
+  --edge: radial-gradient(
+    ellipse 96% 96% at 50% 50%,
+    #000 34%,
+    rgba(0, 0, 0, 0.92) 52%,
+    rgba(0, 0, 0, 0.65) 68%,
+    rgba(0, 0, 0, 0.32) 84%,
+    transparent 100%
+  );
+  -webkit-mask-image: var(--edge);
+  mask-image: var(--edge);
+}
+
+/* 코멘트 + 오이코스 — 사진 아래 검은 공간에 또렷하게 (빔 가독성)
+   글자 크기는 카드 너비에 비례(JS가 --cap / --capo 설정) → 큰 화면에서 같이 커짐 */
+.float .cap {
+  padding: 8px 6px 0; text-align: center; pointer-events: none;
+}
+.float .cap .t {
+  display: block; color: #fff; font-weight: 600; line-height: 1.25;
+  font-size: var(--cap, 15px); letter-spacing: -0.2px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .8);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.float .cap .o {
+  display: block; margin-top: 4px;
+  color: var(--accent); font-weight: 700; letter-spacing: 0.3px;
+  font-size: var(--capo, 12px);
+}
