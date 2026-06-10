@@ -10,7 +10,7 @@ import type { Photo } from "@/lib/types";
 interface Card {
   el: HTMLDivElement;
   hx: number; hy: number;
-  cardW: number; cardH: number; imgH: number;
+  cardW: number; cardH: number; imgH: number; capH: number;
   pidx: number;
   ax: number; ay: number;
   sx: number; sy: number;
@@ -18,6 +18,11 @@ interface Card {
   wob: number;
   baseRot: number; rotAmp: number;
   sr: number; pr: number;
+}
+
+/** 원본 비율(height/width). 크기 데이터가 없으면 1:1 폴백. */
+function ratioOf(p: Photo): number {
+  return p.width && p.height ? p.height / p.width : 1;
 }
 
 function fill(el: HTMLDivElement, p: Photo) {
@@ -92,12 +97,10 @@ export function FloatingStage({ photos }: { photos: Photo[] }) {
         return p;
       }
 
-      const RATIOS = [0.72, 0.78, 0.95, 1.0, 1.22];
       for (let i = 0; i < n; i++) {
         const cardW = Math.round(sizeForRank(i));
-        const imgH = Math.round(
-          cardW * RATIOS[Math.floor(Math.random() * RATIOS.length)],
-        );
+        // 원본 사진 비율 그대로 — 박스가 사진 비율이라 잘리지 않는다
+        const imgH = Math.round(cardW * ratioOf(pics[i]));
         // 캡션 글자 크기를 카드 너비에 비례 → 큰 빔 화면에서도 가독
         const cap = Math.max(13, Math.round(cardW * 0.085));
         const capO = Math.max(11, Math.round(cardW * 0.058));
@@ -118,7 +121,7 @@ export function FloatingStage({ photos }: { photos: Photo[] }) {
         (el.querySelector(".ph") as HTMLElement).style.height = imgH + "px";
 
         cards.push({
-          el, hx: home.x, hy: home.y, cardW, cardH, imgH, pidx: i,
+          el, hx: home.x, hy: home.y, cardW, cardH, imgH, capH, pidx: i,
           ax: amp * (0.7 + Math.random() * 0.6),
           ay: amp * (0.7 + Math.random() * 0.6),
           sx: 0.07 + Math.random() * 0.13,
@@ -162,7 +165,11 @@ export function FloatingStage({ photos }: { photos: Photo[] }) {
       c.pidx = (c.pidx + cards.length) % pics.length;
       c.el.style.opacity = "0";
       setTimeout(() => {
-        fill(c.el, pics[c.pidx]);
+        const np = pics[c.pidx];
+        // 새 사진의 원본 비율로 박스 높이 갱신
+        c.imgH = Math.round(c.cardW * ratioOf(np));
+        c.cardH = c.imgH + c.capH;
+        fill(c.el, np);
         (c.el.querySelector(".ph") as HTMLElement).style.height = c.imgH + "px";
         c.el.style.opacity = "1";
       }, 600);

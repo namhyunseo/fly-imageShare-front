@@ -35,6 +35,9 @@ export interface Photo {
   uploadedBy?: string;
   /** ISO 8601 */
   createdAt: string;
+  /** 원본 픽셀 크기 (빔에서 원본 비율 표시용) */
+  width?: number;
+  height?: number;
 }
 
 /** 업로드 입력 (id·시각·URL은 서버가 부여) */

@@ -17,6 +17,8 @@ interface ImageResponse {
   contentType?: string;
   uploadedBy?: string;
   createdAt: string;
+  width?: number;
+  height?: number;
 }
 
 /** 백엔드 응답 → 프론트 Photo */
@@ -28,6 +30,8 @@ function mapImage(r: ImageResponse): Photo {
     imageUrl: r.imageUrl,
     uploadedBy: r.uploadedBy,
     createdAt: r.createdAt,
+    width: r.width,
+    height: r.height,
   };
 }
 
