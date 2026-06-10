@@ -1,30 +1,31 @@
 "use client";
 
-import { OIKOS } from "@/lib/data";
+import { GROUPS } from "@/lib/data";
 
+/** 오이코스(그룹) 선택 칩. groupName("1-1")을 그대로 표시·전달. */
 export function OikosChips({
   value,
   onChange,
 }: {
   value: string;
-  onChange: (id: string) => void;
+  onChange: (groupName: string) => void;
 }) {
   return (
     <div className="my-2 flex flex-wrap gap-2">
-      {OIKOS.map((o) => {
-        const on = o.id === value;
+      {GROUPS.map((g) => {
+        const on = g === value;
         return (
           <button
-            key={o.id}
+            key={g}
             type="button"
-            onClick={() => onChange(o.id)}
+            onClick={() => onChange(g)}
             className={`rounded-full border px-3.5 py-2 text-[13px] font-semibold transition ${
               on
                 ? "border-[var(--accent2)] bg-[var(--accent2)] text-white"
                 : "border-[var(--line)] bg-[var(--card)] text-[var(--muted)]"
             }`}
           >
-            {o.name}
+            {g}
           </button>
         );
       })}

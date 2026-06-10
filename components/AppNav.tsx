@@ -52,7 +52,7 @@ export function AppNav() {
           >
             {role ? (
               <>
-                {role === "viewer" ? "👤 " : "✍️ "}
+                {role === "VIEWER" ? "👤 " : "✍️ "}
                 <b className="text-[var(--accent)]">{ROLE_LABEL[role]}</b>
               </>
             ) : (

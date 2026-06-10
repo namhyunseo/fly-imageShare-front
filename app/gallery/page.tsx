@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react";
 import { PhotoModal } from "@/components/PhotoModal";
 import { SmartImg } from "@/components/SmartImg";
-import { deletePhoto, getPhotos, oikosName } from "@/lib/data";
+import { deletePhoto, getPhotos, subscribeFeed } from "@/lib/data";
+import { imageSrc } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import type { Photo } from "@/lib/types";
 
 export default function GalleryPage() {
+  const { session } = useAuth();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selected, setSelected] = useState<Photo | null>(null);
   const [nowMs, setNowMs] = useState(0);
@@ -19,12 +22,19 @@ export default function GalleryPage() {
         setNowMs(Date.now());
       })
       .finally(() => setLoading(false));
+
+    // 실시간: 새 사진이 올라오면 맨 앞에 추가 (중복 제거)
+    return subscribeFeed((photo) => {
+      setPhotos((prev) =>
+        prev.some((p) => p.id === photo.id) ? prev : [photo, ...prev],
+      );
+    });
   }, []);
 
   async function handleDelete(id: string) {
-    await deletePhoto(id);
+    await deletePhoto(id, session?.token ?? null);
     setSelected(null);
-    setPhotos(await getPhotos());
+    setPhotos((prev) => prev.filter((p) => p.id !== id));
   }
 
   return (
@@ -64,30 +74,30 @@ export default function GalleryPage() {
 
       {/* 인스타 릴스 피드 스타일 — 세로 직사각 3열, 촘촘, 하단 텍스트 오버레이 */}
       {!loading && photos.length > 0 && (
-      <div className="-mx-[18px] grid grid-cols-3 gap-0.5">
-        {photos.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => setSelected(p)}
-            className="relative aspect-[4/5] overflow-hidden bg-[var(--bg-soft)]"
-          >
-            <SmartImg
-              src={p.url}
-              fallback={p.fallbackUrl}
-              className="h-full w-full object-cover"
-            />
-            <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 p-2 text-left">
-              <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">
-                {p.comment}
-              </p>
-              <span className="mt-1 inline-block text-[10px] font-bold text-[var(--accent)] drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
-                {oikosName(p.oikosId)}
-              </span>
-            </div>
-          </button>
-        ))}
-      </div>
+        <div className="-mx-[18px] grid grid-cols-3 gap-0.5">
+          {photos.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setSelected(p)}
+              className="relative aspect-[4/5] overflow-hidden bg-[var(--bg-soft)]"
+            >
+              <SmartImg
+                src={imageSrc(p.imageUrl)}
+                fallback={p.fallbackUrl}
+                className="h-full w-full object-cover"
+              />
+              <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 p-2 text-left">
+                <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">
+                  {p.comment}
+                </p>
+                <span className="mt-1 inline-block text-[10px] font-bold text-[var(--accent)] drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+                  {p.groupName}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
       )}
 
       <PhotoModal

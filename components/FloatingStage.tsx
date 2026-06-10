@@ -4,7 +4,7 @@
 // 화면을 충돌 회피로 흩뿌리고, 각 카드는 두 주파수를 섞은 궤도로 천천히
 // 표류한다. 주기적으로 한 장씩 새 사진으로 교체된다.
 import { useEffect, useRef } from "react";
-import { oikosName } from "@/lib/data";
+import { imageSrc } from "@/lib/api";
 import type { Photo } from "@/lib/types";
 
 interface Card {
@@ -22,19 +22,21 @@ interface Card {
 
 function fill(el: HTMLDivElement, p: Photo) {
   el.innerHTML =
-    `<img class="ph" src="${p.url}" alt=""${
+    `<img class="ph" src="${imageSrc(p.imageUrl)}" alt=""${
       p.fallbackUrl
         ? ` onerror="this.onerror=null;this.src='${p.fallbackUrl}'"`
         : ""
     }>` +
     `<div class="cap"><span class="t">${p.comment}</span>` +
-    `<span class="o">${oikosName(p.oikosId)}</span></div>`;
+    `<span class="o">${p.groupName}</span></div>`;
 }
 
 export function FloatingStage({ photos }: { photos: Photo[] }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const photosRef = useRef(photos);
-  photosRef.current = photos;
+  useEffect(() => {
+    photosRef.current = photos;
+  });
 
   useEffect(() => {
     const stage = stageRef.current;

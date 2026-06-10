@@ -3,25 +3,39 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import type { Role } from "@/lib/types";
+import { ApiError } from "@/lib/api";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, enterViewer } = useAuth();
   const router = useRouter();
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function enter(role: Role) {
-    login(role);
-    router.push(role === "viewer" ? "/gallery" : "/upload");
+  async function handleLogin() {
+    if (busy || !id.trim()) return;
+    setError(null);
+    setBusy(true);
+    try {
+      await login(id.trim(), pw);
+      router.push("/upload");
+    } catch (e) {
+      // 401/403 = 아이디·비밀번호 오류, 그 외는 서버 메시지
+      setError(
+        e instanceof ApiError && e.isAuth
+          ? "아이디 또는 비밀번호가 올바르지 않아요."
+          : e instanceof Error
+            ? e.message
+            : "로그인에 실패했어요. 잠시 후 다시 시도해주세요.",
+      );
+      setBusy(false);
+    }
   }
 
-  // mock: 아이디에 'admin' 포함이면 관리자, 그 외 입력 시 리더로 발급
-  function handleLeaderLogin() {
-    const role: Role = id.trim().toLowerCase().includes("admin")
-      ? "admin"
-      : "leader";
-    enter(role);
+  function browse() {
+    enterViewer();
+    router.push("/gallery");
   }
 
   return (
@@ -47,7 +61,7 @@ export default function LoginPage() {
           <input
             value={id}
             onChange={(e) => setId(e.target.value)}
-            placeholder="리더 / 관리자 계정"
+            placeholder="발급받은 리더 / 관리자 계정"
             className="w-full rounded-xl border border-[var(--line)] bg-[#16182e] px-3.5 py-3 text-[15px] text-[var(--text)] outline-none focus:border-[var(--accent2)]"
           />
         </div>
@@ -59,16 +73,24 @@ export default function LoginPage() {
             type="password"
             value={pw}
             onChange={(e) => setPw(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleLogin()}
             placeholder="••••••••"
             className="w-full rounded-xl border border-[var(--line)] bg-[#16182e] px-3.5 py-3 text-[15px] text-[var(--text)] outline-none focus:border-[var(--accent2)]"
           />
         </div>
 
+        {error && (
+          <div className="mb-3 rounded-xl border border-[rgba(255,107,107,0.45)] bg-[rgba(255,107,107,0.1)] px-3.5 py-2.5 text-[12.5px] text-[#ff9f9f]">
+            {error}
+          </div>
+        )}
+
         <button
-          onClick={handleLeaderLogin}
-          className="w-full rounded-xl bg-gradient-to-br from-[var(--accent)] to-[#ff9d54] py-3 text-[15px] font-bold text-[#1a1530]"
+          onClick={handleLogin}
+          disabled={busy || !id.trim()}
+          className="w-full rounded-xl bg-gradient-to-br from-[var(--accent)] to-[#ff9d54] py-3 text-[15px] font-bold text-[#1a1530] disabled:opacity-40"
         >
-          리더로 로그인
+          {busy ? "로그인 중…" : "리더 / 관리자로 로그인"}
         </button>
 
         <div className="my-4 flex items-center gap-2.5 text-[12px] text-[var(--muted)] before:h-px before:flex-1 before:bg-[var(--line)] after:h-px after:flex-1 after:bg-[var(--line)]">
@@ -76,7 +98,7 @@ export default function LoginPage() {
         </div>
 
         <button
-          onClick={() => enter("viewer")}
+          onClick={browse}
           className="block w-full rounded-xl border border-[var(--line)] bg-transparent py-3 text-[15px] font-bold text-[var(--muted)]"
         >
           👀 그냥 둘러보기 (뷰어)
