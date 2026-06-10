@@ -7,6 +7,7 @@ import { SmartImg } from "@/components/SmartImg";
 import { addPhoto } from "@/lib/data";
 import { useAuth } from "@/lib/auth";
 import { canPost } from "@/lib/types";
+import { hasProfanity } from "@/lib/moderation";
 
 const MAX = 50;
 
@@ -19,6 +20,7 @@ export default function UploadPage() {
   const [oikosId, setOikosId] = useState("1");
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const allowed = role !== null && canPost(role);
 
@@ -29,13 +31,27 @@ export default function UploadPage() {
 
   async function publish() {
     if (!preview || busy) return;
+    setError(null);
+
+    // 비속어 1차 필터 (연동 후 서버 측 필터가 최종 판단)
+    if (hasProfanity(comment)) {
+      setError("코멘트에 사용할 수 없는 표현이 있어요. 다시 확인해주세요.");
+      return;
+    }
+
     setBusy(true);
-    // mock: 실제로는 스토리지 업로드 → URL 수신. 여기선 로컬 objectURL.
-    await addPhoto(
-      { url: preview, oikosId, comment: comment.trim() },
-      Date.parse(new Date().toISOString()),
-    );
-    router.push("/gallery");
+    try {
+      // mock: 실제로는 스토리지 업로드 → URL 수신. 여기선 로컬 objectURL.
+      await addPhoto(
+        { url: preview, oikosId, comment: comment.trim() },
+        Date.parse(new Date().toISOString()),
+      );
+      router.push("/gallery");
+    } catch {
+      // 연동 시: 401/403은 로그인 만료/권한, 그 외는 message/details 노출
+      setError("사진을 올리지 못했어요. 잠시 후 다시 시도해주세요.");
+      setBusy(false);
+    }
   }
 
   return (
@@ -120,6 +136,13 @@ export default function UploadPage() {
       <div className="mb-4 mt-1 text-right text-[11.5px] text-[var(--muted)]">
         {comment.length}/{MAX}
       </div>
+
+      {error && (
+        <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-[rgba(255,107,107,0.45)] bg-[rgba(255,107,107,0.1)] px-3.5 py-3 text-[12.5px] text-[#ff9f9f]">
+          ⚠️
+          <div>{error}</div>
+        </div>
+      )}
 
       <button
         onClick={publish}

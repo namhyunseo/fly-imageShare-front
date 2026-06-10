@@ -68,3 +68,9 @@ export async function addPhoto(input: NewPhoto, createdAtMs: number): Promise<Ph
   photos.unshift(photo);
   return photo;
 }
+
+/** 사진 삭제 (mock: 메모리에서 제거). 연동 시 DELETE /images/{id} 로 교체. */
+export async function deletePhoto(id: string): Promise<void> {
+  const i = photos.findIndex((p) => p.id === id);
+  if (i !== -1) photos.splice(i, 1);
+}
