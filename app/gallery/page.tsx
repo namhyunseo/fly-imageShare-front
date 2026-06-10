@@ -3,18 +3,29 @@
 import { useEffect, useState } from "react";
 import { PhotoModal } from "@/components/PhotoModal";
 import { SmartImg } from "@/components/SmartImg";
-import { getPhotos, oikosName } from "@/lib/data";
+import { deletePhoto, getPhotos, oikosName } from "@/lib/data";
 import type { Photo } from "@/lib/types";
 
 export default function GalleryPage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selected, setSelected] = useState<Photo | null>(null);
   const [nowMs, setNowMs] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getPhotos().then(setPhotos);
-    setNowMs(Date.now());
+    getPhotos()
+      .then((ps) => {
+        setPhotos(ps);
+        setNowMs(Date.now());
+      })
+      .finally(() => setLoading(false));
   }, []);
+
+  async function handleDelete(id: string) {
+    await deletePhoto(id);
+    setSelected(null);
+    setPhotos(await getPhotos());
+  }
 
   return (
     <div className="mx-auto max-w-[460px] px-[18px] pb-[60px] pt-[22px]">
@@ -28,7 +39,31 @@ export default function GalleryPage() {
         최신순 · 탭하면 코멘트와 오이코스를 볼 수 있어요.
       </p>
 
+      {/* 로딩 — 스켈레톤 그리드 */}
+      {loading && (
+        <div className="-mx-[18px] grid grid-cols-3 gap-0.5">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <div
+              key={i}
+              className="aspect-[4/5] animate-pulse bg-[var(--bg-soft)]"
+            />
+          ))}
+        </div>
+      )}
+
+      {/* 빈 상태 */}
+      {!loading && photos.length === 0 && (
+        <div className="mt-16 flex flex-col items-center text-center text-[var(--muted)]">
+          <span className="mb-3 text-[44px]">📭</span>
+          <p className="text-[15px] font-semibold">아직 올라온 사진이 없어요</p>
+          <p className="mt-1 text-[13px]">
+            첫 순간을 올려 갤러리를 채워보세요.
+          </p>
+        </div>
+      )}
+
       {/* 인스타 릴스 피드 스타일 — 세로 직사각 3열, 촘촘, 하단 텍스트 오버레이 */}
+      {!loading && photos.length > 0 && (
       <div className="-mx-[18px] grid grid-cols-3 gap-0.5">
         {photos.map((p) => (
           <button
@@ -53,11 +88,13 @@ export default function GalleryPage() {
           </button>
         ))}
       </div>
+      )}
 
       <PhotoModal
         photo={selected}
         nowMs={nowMs}
         onClose={() => setSelected(null)}
+        onDelete={handleDelete}
       />
     </div>
   );

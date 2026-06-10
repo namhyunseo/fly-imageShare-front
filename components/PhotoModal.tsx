@@ -4,17 +4,22 @@ import { useEffect } from "react";
 import { SmartImg } from "./SmartImg";
 import { oikosName } from "@/lib/data";
 import { relTime } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
 import type { Photo } from "@/lib/types";
 
 export function PhotoModal({
   photo,
   nowMs,
   onClose,
+  onDelete,
 }: {
   photo: Photo | null;
   nowMs: number;
   onClose: () => void;
+  /** 삭제 실행 (모더레이션). 관리자에게만 노출. */
+  onDelete?: (id: string) => void;
 }) {
+  const { role } = useAuth();
   useEffect(() => {
     if (!photo) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -50,6 +55,19 @@ export function PhotoModal({
           <p className="text-[12px] text-[var(--muted)]">
             {relTime(photo.createdAt, nowMs)}
           </p>
+
+          {role === "admin" && onDelete && (
+            <button
+              onClick={() => {
+                if (confirm("이 사진을 삭제할까요? 되돌릴 수 없어요.")) {
+                  onDelete(photo.id);
+                }
+              }}
+              className="mt-4 w-full rounded-xl border border-[rgba(255,107,107,0.5)] bg-[rgba(255,107,107,0.12)] py-2.5 text-[13.5px] font-bold text-[#ff8f8f]"
+            >
+              🗑️ 사진 삭제 (관리자)
+            </button>
+          )}
         </div>
       </div>
     </div>
