@@ -22,11 +22,7 @@ interface Card {
 
 function fill(el: HTMLDivElement, p: Photo) {
   el.innerHTML =
-    `<img class="ph" src="${imageSrc(p.imageUrl)}" alt=""${
-      p.fallbackUrl
-        ? ` onerror="this.onerror=null;this.src='${p.fallbackUrl}'"`
-        : ""
-    }>` +
+    `<img class="ph" src="${imageSrc(p.imageUrl)}" alt="">` +
     `<div class="cap"><span class="t">${p.comment}</span>` +
     `<span class="o">${p.groupName}</span></div>`;
 }

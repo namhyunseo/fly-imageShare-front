@@ -29,14 +29,12 @@ export interface Photo {
   comment: string;
   /** 오이코스 식별자 "1-1" ~ "1-5" */
   groupName: string;
-  /** "/images/{id}/content" 상대경로 또는 mock 절대 URL */
+  /** "/images/{id}/content" 상대경로 (또는 S3 절대 URL) */
   imageUrl: string;
   /** 업로더 표시명 */
   uploadedBy?: string;
   /** ISO 8601 */
   createdAt: string;
-  /** mock 전용 대체 URL (실연동 시 미사용) */
-  fallbackUrl?: string;
 }
 
 /** 업로드 입력 (id·시각·URL은 서버가 부여) */

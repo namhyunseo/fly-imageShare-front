@@ -44,7 +44,6 @@ export function PhotoModal({
       <div className="w-full max-w-[380px] overflow-hidden rounded-[18px] border border-[var(--line)] bg-[var(--card)] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
         <SmartImg
           src={imageSrc(photo.imageUrl)}
-          fallback={photo.fallbackUrl}
           className="block h-[300px] w-full object-cover"
         />
         <div className="px-[18px] pb-5 pt-4">

@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// 인증 컨텍스트 (mock/real 토글)
+// 인증 컨텍스트 (백엔드 실연동)
 //
 // 리더·관리자: /auth/login으로 토큰 발급 → 세션 유지(localStorage).
 //   백엔드 LoginResponse{token, displayName, role, groupName}을 보관한다.
@@ -17,7 +17,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { USE_MOCK, apiFetch } from "./api";
+import { apiFetch } from "./api";
 import type { Role, Session } from "./types";
 
 const SESSION_KEY = "oikos-session";
@@ -46,18 +46,6 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
-function mockLogin(username: string): Session {
-  const isAdmin = username.trim().toLowerCase().includes("admin");
-  return {
-    token: "mock-token",
-    username,
-    displayName: username,
-    role: isAdmin ? "ADMIN" : "LEADER",
-    // mock: 발급 계정명이 "1-3" 형식이면 그 그룹, 아니면 기본 1-1. 관리자는 없음.
-    groupName: isAdmin ? null : /^\d+-\d+$/.test(username.trim()) ? username.trim() : "1-1",
-  };
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isViewer, setIsViewer] = useState(false);
@@ -75,12 +63,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
-    const next: Session = USE_MOCK
-      ? mockLogin(username)
-      : await apiFetch<LoginResponse>("/auth/login", {
-          method: "POST",
-          json: { username, password },
-        }).then((r) => ({ ...r, role: r.role.toUpperCase() as Role }));
+    const r = await apiFetch<LoginResponse>("/auth/login", {
+      method: "POST",
+      json: { username, password },
+    });
+    const next: Session = { ...r, role: r.role.toUpperCase() as Role };
 
     setSession(next);
     setIsViewer(false);

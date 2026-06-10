@@ -1,15 +1,11 @@
 // ============================================================
-// API 클라이언트 (백엔드 계약 정합 + mock/real 토글)
+// API 클라이언트 (백엔드 계약 정합)
 //
-// NEXT_PUBLIC_API_BASE_URL 이 비어 있으면 mock 모드(USE_MOCK=true).
-// 채워지면 실서버 모드로 자동 전환된다. 백엔드가 source of truth이며
-// 프론트는 이 모듈을 통해서만 서버에 접근한다.
+// 백엔드가 source of truth이며 프론트는 이 모듈을 통해서만 서버에
+// 접근한다. NEXT_PUBLIC_API_BASE_URL 이 반드시 설정되어야 한다.
 // ============================================================
 
 const RAW_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/+$/, "");
-
-/** API base가 없으면 mock 모드 */
-export const USE_MOCK = RAW_BASE === "";
 
 /**
  * 실제 호출에 쓸 base URL.
@@ -35,7 +31,7 @@ export function apiBase(): string {
   return RAW_BASE;
 }
 
-/** 사진 content의 표시용 절대 URL. mock의 절대 URL은 그대로 반환. */
+/** 사진 content의 표시용 절대 URL. 절대 URL(S3 등)이면 그대로 반환. */
 export function imageSrc(imageUrl: string): string {
   if (/^https?:\/\//.test(imageUrl)) return imageUrl;
   return apiBase() + imageUrl;

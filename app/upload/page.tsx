@@ -39,7 +39,7 @@ export default function UploadPage() {
   }
 
   async function publish() {
-    if (!preview || busy) return;
+    if (!file || busy) return;
     setError(null);
 
     if (hasProfanity(comment)) {
@@ -49,12 +49,7 @@ export default function UploadPage() {
 
     setBusy(true);
     try {
-      await addPhoto(
-        { groupName, comment: comment.trim() },
-        file,
-        session?.token ?? null,
-        preview,
-      );
+      await addPhoto({ groupName, comment: comment.trim() }, file, session?.token ?? null);
       router.push("/gallery");
     } catch (e) {
       setError(

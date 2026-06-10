@@ -83,7 +83,6 @@ export default function GalleryPage() {
             >
               <SmartImg
                 src={imageSrc(p.imageUrl)}
-                fallback={p.fallbackUrl}
                 className="h-full w-full object-cover"
               />
               <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
