@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { PhotoModal } from "@/components/PhotoModal";
 import { SmartImg } from "@/components/SmartImg";
-import { deletePhoto, getPhotos, subscribeFeed } from "@/lib/data";
-import { imageSrc } from "@/lib/api";
+import { deleteImage, getImages } from "@/lib/api/images";
+import { subscribeFeed } from "@/lib/api/display";
+import { imageSrc } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
 import type { Photo } from "@/lib/types";
 
@@ -16,7 +17,7 @@ export default function GalleryPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getPhotos()
+    getImages()
       .then((ps) => {
         setPhotos(ps);
         setNowMs(Date.now());
@@ -32,7 +33,7 @@ export default function GalleryPage() {
   }, []);
 
   async function handleDelete(id: string) {
-    await deletePhoto(id, session?.token ?? null);
+    await deleteImage(id, session?.token ?? null);
     setSelected(null);
     setPhotos((prev) => prev.filter((p) => p.id !== id));
   }
@@ -66,9 +67,7 @@ export default function GalleryPage() {
         <div className="mt-16 flex flex-col items-center text-center text-[var(--muted)]">
           <span className="mb-3 text-[44px]">📭</span>
           <p className="text-[15px] font-semibold">아직 올라온 사진이 없어요</p>
-          <p className="mt-1 text-[13px]">
-            첫 순간을 올려 갤러리를 채워보세요.
-          </p>
+          <p className="mt-1 text-[13px]">첫 순간을 올려 갤러리를 채워보세요.</p>
         </div>
       )}
 
@@ -91,7 +90,7 @@ export default function GalleryPage() {
                   {p.comment}
                 </p>
                 <span className="mt-1 inline-block text-[10px] font-bold text-[var(--accent)] drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
-                  {p.groupName}
+                  {p.oikosName}
                 </span>
               </div>
             </button>

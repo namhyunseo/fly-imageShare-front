@@ -1,13 +1,20 @@
 "use client";
 
-// 빔 전용 정적 배치 무대.
-// 격자가 아니라 충돌 회피로 흩뿌린다 — 위치는 랜덤이되 서로 겹치지 않게.
-// 화면 중앙에 가까울수록 크게 두고, 사진은 원본 비율을 유지한다.
+// 빔 전용 무대.
+// 충돌 회피로 흩뿌려 배치하고(겹침 없음), 각 사진이 제자리(home) 주변을
+// 작은 진폭으로 천천히 부유한다. sizeScale/count 로 현장 조절.
 import { useEffect, useRef } from "react";
-import { imageSrc } from "@/lib/api";
+import { imageSrc } from "@/lib/api/client";
 import type { Photo } from "@/lib/types";
 
 type Slot = { x: number; y: number; reach: number; d2: number };
+
+interface Card {
+  el: HTMLDivElement;
+  homeX: number; homeY: number; cardW: number; cardH: number;
+  ax: number; ay: number; sx: number; sy: number; px: number; py: number; // 부유
+  baseRot: number; rotAmp: number; sr: number; pr: number; // 회전 부유
+}
 
 /** 원본 비율(height/width). 크기 데이터가 없으면 1:1 폴백. */
 function ratioOf(p: Photo): number {
@@ -25,10 +32,20 @@ function fill(el: HTMLDivElement, p: Photo) {
   el.innerHTML =
     `<img class="ph" src="${imageSrc(p.imageUrl)}" alt="">` +
     `<div class="cap"><span class="t">${p.comment}</span>` +
-    `<span class="o">${p.groupName}</span></div>`;
+    `<span class="o">${p.oikosName}</span></div>`;
 }
 
-export function FloatingStage({ photos }: { photos: Photo[] }) {
+export function FloatingStage({
+  photos,
+  sizeScale = 1,
+  count,
+}: {
+  photos: Photo[];
+  /** 사진 크기 배율 (현장 조절용) */
+  sizeScale?: number;
+  /** 표시 개수 (현장 조절용). 없으면 화면 크기 기본값 */
+  count?: number;
+}) {
   const stageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,46 +53,57 @@ export function FloatingStage({ photos }: { photos: Photo[] }) {
     if (!stage) return;
     const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
+    let raf = 0;
+    let cards: Card[] = [];
+    const start = performance.now();
+
     function build() {
       if (!stage || !photos.length) return;
       stage.querySelectorAll(".float").forEach((f) => f.remove());
+      cards = [];
       const W = stage.clientWidth, H = stage.clientHeight;
       const small = W < 760;
-      const n = Math.min(small ? 8 : 12, photos.length);
+      const slots = count ?? (small ? 8 : 12);
+      const n = Math.min(slots, photos.length);
       const cx = W / 2, cy = H / 2;
       const maxR = Math.hypot(W / 2, H / 2);
       const topPad = small ? 56 : 80, botPad = 44;
 
-      // 중앙 거리(d2) → 카드 너비. 중앙이 크고 가장자리가 작다.
-      const big = Math.min(W, H) * (small ? 0.36 : 0.26);
-      const sml = Math.min(W, H) * (small ? 0.20 : 0.14);
-      const sizeFor = (d2: number) => big - (big - sml) * d2;
+      const big = Math.min(W, H) * (small ? 0.32 : 0.23) * sizeScale;
+      const sml = Math.min(W, H) * (small ? 0.19 : 0.13) * sizeScale;
+      const maxCardH = H * 0.42 * sizeScale; // 세로 긴 사진 높이 상한
+      const sizeForD = (d2: number) => big - (big - sml) * d2;
+      const widthFor = (d2: number, ratio: number) =>
+        Math.min(sizeForD(d2), maxCardH / (ratio + 0.2));
 
-      // 충돌 회피 배치 — 위치를 랜덤 시도하고, 각 카드의 실제 비율로
-      // 충돌 반경(reach)을 정확히 계산해 겹치지 않는 자리를 찾는다.
+      // 충돌 회피 배치 — 자리를 못 찾으면 카드를 점점 줄여서라도 무겹침 보장.
       const placed: Slot[] = [];
       function place(ratio: number): { s: Slot; cardW: number } {
-        for (let gap = 1.0; gap >= 0.56; gap -= 0.06) {
-          for (let k = 0; k < 220; k++) {
-            const x = rnd(0, W), y = rnd(topPad, H - botPad);
-            const d2 = Math.hypot(x - cx, y - cy) / maxR;
-            const cardW = sizeFor(d2);
-            const cardH = cardW * ratio + capInfo(cardW).capH;
-            const reach = Math.hypot(cardW, cardH) / 2;
-            if (x < reach + 6 || x > W - reach - 6 || y < topPad + reach || y > H - botPad - reach) continue;
-            if (placed.every((q) => Math.hypot(q.x - x, q.y - y) > (q.reach + reach) * gap)) {
-              const s = { x, y, reach, d2 };
-              placed.push(s);
-              return { s, cardW };
+        for (let scale = 1; scale >= 0.5; scale -= 0.1) {
+          for (let gap = 1.0; gap >= 0.8; gap -= 0.05) {
+            for (let k = 0; k < 140; k++) {
+              const x = rnd(0, W), y = rnd(topPad, H - botPad);
+              const d2 = Math.hypot(x - cx, y - cy) / maxR;
+              const cardW = widthFor(d2, ratio) * scale;
+              const cardH = cardW * ratio + capInfo(cardW).capH;
+              const reach = Math.hypot(cardW, cardH) / 2;
+              if (x < reach + 6 || x > W - reach - 6 || y < topPad + reach || y > H - botPad - reach) continue;
+              if (placed.every((q) => Math.hypot(q.x - x, q.y - y) > (q.reach + reach) * gap)) {
+                const s = { x, y, reach, d2 };
+                placed.push(s);
+                return { s, cardW };
+              }
             }
           }
         }
-        // 폴백: 중앙 근처 (거의 도달하지 않음)
-        const x = rnd(W * 0.3, W * 0.7), y = rnd(H * 0.3, H * 0.7);
+        const cardW = widthFor(1, ratio) * 0.5;
+        const cardH = cardW * ratio + capInfo(cardW).capH;
+        const reach = Math.hypot(cardW, cardH) / 2;
+        const x = rnd(reach + 6, W - reach - 6), y = rnd(topPad + reach, H - botPad - reach);
         const d2 = Math.hypot(x - cx, y - cy) / maxR;
-        const s = { x, y, reach: 0, d2 };
+        const s = { x, y, reach, d2 };
         placed.push(s);
-        return { s, cardW: sizeFor(d2) };
+        return { s, cardW };
       }
 
       for (let i = 0; i < n; i++) {
@@ -96,20 +124,46 @@ export function FloatingStage({ photos }: { photos: Photo[] }) {
         fill(el, p);
         (el.querySelector(".ph") as HTMLElement).style.height = imgH + "px";
 
-        const rot = rnd(-6, 6);
+        const baseRot = rnd(-5, 5);
         el.style.transform =
-          `translate(${(s.x - cardW / 2).toFixed(1)}px, ${(s.y - cardH / 2).toFixed(1)}px) rotate(${rot.toFixed(2)}deg)`;
+          `translate(${(s.x - cardW / 2).toFixed(1)}px, ${(s.y - cardH / 2).toFixed(1)}px) rotate(${baseRot}deg)`;
         stage!.appendChild(el);
         // 살짝 시차를 둔 페이드인 (CSS transition)
         setTimeout(() => { el.style.opacity = "1"; }, i * 55);
+
+        // 작은 부유 파라미터 (진폭 작게, 천천히)
+        cards.push({
+          el, homeX: s.x, homeY: s.y, cardW, cardH,
+          ax: rnd(4, 9), ay: rnd(4, 9),
+          sx: rnd(0.18, 0.4), sy: rnd(0.18, 0.4),
+          px: rnd(0, 6.28), py: rnd(0, 6.28),
+          baseRot, rotAmp: rnd(0.3, 0.9),
+          sr: rnd(0.12, 0.28), pr: rnd(0, 6.28),
+        });
       }
     }
 
+    function loop(now: number) {
+      const t = (now - start) / 1000;
+      for (const c of cards) {
+        const x = c.homeX + c.ax * Math.sin(t * c.sx + c.px);
+        const y = c.homeY + c.ay * Math.sin(t * c.sy + c.py);
+        const rot = c.baseRot + c.rotAmp * Math.sin(t * c.sr + c.pr);
+        c.el.style.transform =
+          `translate(${(x - c.cardW / 2).toFixed(1)}px, ${(y - c.cardH / 2).toFixed(1)}px) rotate(${rot.toFixed(2)}deg)`;
+      }
+      raf = requestAnimationFrame(loop);
+    }
+
     build();
+    raf = requestAnimationFrame(loop);
     const ro = new ResizeObserver(() => build());
     ro.observe(stage);
-    return () => ro.disconnect();
-  }, [photos]);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, [photos, sizeScale, count]);
 
   return <div ref={stageRef} className="stage" />;
 }

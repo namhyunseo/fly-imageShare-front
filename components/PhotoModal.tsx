@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { SmartImg } from "./SmartImg";
-import { imageSrc } from "@/lib/api";
+import { imageSrc } from "@/lib/api/client";
 import { relTime } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
 import type { Photo } from "@/lib/types";
@@ -48,7 +48,7 @@ export function PhotoModal({
         />
         <div className="px-[18px] pb-5 pt-4">
           <span className="mb-2.5 inline-block rounded-full bg-[var(--accent)] px-2.5 py-[3px] text-[11.5px] font-bold text-[#1a1530]">
-            {photo.groupName}
+            {photo.oikosName}
           </span>
           <p className="mb-1.5 text-[15px] leading-relaxed">{photo.comment}</p>
           <p className="text-[12px] text-[var(--muted)]">
