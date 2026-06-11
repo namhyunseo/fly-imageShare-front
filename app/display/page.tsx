@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { FloatingStage } from "@/components/FloatingStage";
-import { getPhotos } from "@/lib/data";
+import { getPhotos, subscribeFeed } from "@/lib/data";
 import type { Photo } from "@/lib/types";
 
 export default function DisplayPage() {
@@ -11,6 +11,13 @@ export default function DisplayPage() {
 
   useEffect(() => {
     getPhotos().then(setPhotos);
+
+    // 실시간: 새 사진이 올라오면 무대에 합류
+    return subscribeFeed((photo) => {
+      setPhotos((prev) =>
+        prev.some((p) => p.id === photo.id) ? prev : [photo, ...prev],
+      );
+    });
   }, []);
 
   return (

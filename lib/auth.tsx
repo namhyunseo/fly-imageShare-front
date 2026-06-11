@@ -1,58 +1,102 @@
 "use client";
 
 // ============================================================
-// 권한 컨텍스트 (mock)
+// 인증 컨텍스트 (백엔드 실연동)
 //
-// 시안의 role 전환을 클라이언트 상태로. localStorage에 저장해
-// 새로고침에도 유지. 추후 Supabase Auth 세션으로 교체 지점.
+// 리더·관리자: /auth/login으로 토큰 발급 → 세션 유지(localStorage).
+//   백엔드 LoginResponse{token, displayName, role, groupName}을 보관한다.
+// 뷰어: 백엔드 계정이 없음(VIEWER는 발급 안 됨) → 토큰 없는 익명 진입.
+// 갤러리·디스플레이는 공개라 토큰 없이 열람 가능.
 // ============================================================
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
-import type { Role } from "./types";
+import { apiFetch } from "./api";
+import type { Role, Session } from "./types";
 
-const STORAGE_KEY = "oikos-role";
+const SESSION_KEY = "oikos-session";
+const VIEWER_KEY = "oikos-viewer";
+
+/** 백엔드 LoginResponse (계약) */
+interface LoginResponse {
+  token: string;
+  username: string;
+  displayName: string;
+  role: string;
+  groupName: string | null;
+}
 
 interface AuthState {
-  /** null = 아직 입장 전 */
+  /** 로그인 세션 (리더·관리자). 뷰어/미입장은 null */
+  session: Session | null;
+  /** 파생 권한: 세션 role > 뷰어 > null */
   role: Role | null;
-  login: (role: Role) => void;
+  /** 리더·관리자 로그인 */
+  login: (username: string, password: string) => Promise<void>;
+  /** 뷰어로 둘러보기 (익명) */
+  enterViewer: () => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<Role | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isViewer, setIsViewer] = useState(false);
 
-  // 초기 1회: 저장된 세션 복원
+  // 초기 1회: 저장된 세션/뷰어 상태 복원 (localStorage 동기화 — mount 시 1회)
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY) as Role | null;
-    if (saved === "admin" || saved === "leader" || saved === "viewer") {
-      setRole(saved);
+    try {
+      const saved = localStorage.getItem(SESSION_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved) setSession(JSON.parse(saved) as Session);
+      else if (localStorage.getItem(VIEWER_KEY)) setIsViewer(true);
+    } catch {
+      /* 파싱 실패 무시 */
     }
   }, []);
 
-  const login = useCallback((next: Role) => {
-    setRole(next);
-    localStorage.setItem(STORAGE_KEY, next);
+  const login = useCallback(async (username: string, password: string) => {
+    const r = await apiFetch<LoginResponse>("/auth/login", {
+      method: "POST",
+      json: { username, password },
+    });
+    const next: Session = { ...r, role: r.role.toUpperCase() as Role };
+
+    setSession(next);
+    setIsViewer(false);
+    localStorage.setItem(SESSION_KEY, JSON.stringify(next));
+    localStorage.removeItem(VIEWER_KEY);
+  }, []);
+
+  const enterViewer = useCallback(() => {
+    setSession(null);
+    setIsViewer(true);
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.setItem(VIEWER_KEY, "1");
   }, []);
 
   const logout = useCallback(() => {
-    setRole(null);
-    localStorage.removeItem(STORAGE_KEY);
+    setSession(null);
+    setIsViewer(false);
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(VIEWER_KEY);
   }, []);
 
-  return (
-    <AuthContext.Provider value={{ role, login, logout }}>
-      {children}
-    </AuthContext.Provider>
+  const role: Role | null = session?.role ?? (isViewer ? "VIEWER" : null);
+
+  const value = useMemo(
+    () => ({ session, role, login, enterViewer, logout }),
+    [session, role, login, enterViewer, logout],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthState {

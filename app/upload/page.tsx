@@ -4,36 +4,44 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { OikosChips } from "@/components/OikosChips";
 import { SmartImg } from "@/components/SmartImg";
-import { addPhoto } from "@/lib/data";
+import { addPhoto, GROUPS } from "@/lib/data";
 import { useAuth } from "@/lib/auth";
 import { canPost } from "@/lib/types";
 import { hasProfanity } from "@/lib/moderation";
+import { ApiError } from "@/lib/api";
 
 const MAX = 50;
 
 export default function UploadPage() {
-  const { role } = useAuth();
+  const { role, session } = useAuth();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [oikosId, setOikosId] = useState("1");
+  // 관리자는 계정에 오이코스가 없어 직접 선택 (리더는 계정 groupName 자동)
+  const [pickedGroup, setPickedGroup] = useState(GROUPS[0]);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const allowed = role !== null && canPost(role);
+  // 리더: 발급 계정에 내장된 오이코스. 관리자: 직접 선택.
+  const accountGroup = session?.groupName ?? null;
+  const groupName = accountGroup ?? pickedGroup;
 
   function pick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) setPreview(URL.createObjectURL(file));
+    const f = e.target.files?.[0];
+    if (f) {
+      setFile(f);
+      setPreview(URL.createObjectURL(f));
+    }
   }
 
   async function publish() {
-    if (!preview || busy) return;
+    if (!file || busy) return;
     setError(null);
 
-    // 비속어 1차 필터 (연동 후 서버 측 필터가 최종 판단)
     if (hasProfanity(comment)) {
       setError("코멘트에 사용할 수 없는 표현이 있어요. 다시 확인해주세요.");
       return;
@@ -41,15 +49,16 @@ export default function UploadPage() {
 
     setBusy(true);
     try {
-      // mock: 실제로는 스토리지 업로드 → URL 수신. 여기선 로컬 objectURL.
-      await addPhoto(
-        { url: preview, oikosId, comment: comment.trim() },
-        Date.parse(new Date().toISOString()),
-      );
+      await addPhoto({ groupName, comment: comment.trim() }, file, session?.token ?? null);
       router.push("/gallery");
-    } catch {
-      // 연동 시: 401/403은 로그인 만료/권한, 그 외는 message/details 노출
-      setError("사진을 올리지 못했어요. 잠시 후 다시 시도해주세요.");
+    } catch (e) {
+      setError(
+        e instanceof ApiError && e.isAuth
+          ? "로그인이 만료됐거나 권한이 없어요. 다시 로그인해주세요."
+          : e instanceof Error
+            ? e.message
+            : "사진을 올리지 못했어요. 잠시 후 다시 시도해주세요.",
+      );
       setBusy(false);
     }
   }
@@ -90,7 +99,7 @@ export default function UploadPage() {
       <input
         ref={fileRef}
         type="file"
-        accept="image/png,image/jpeg"
+        accept="image/png,image/jpeg,image/heic,image/heif,.heic,.heif"
         className="hidden"
         onChange={pick}
       />
@@ -112,17 +121,29 @@ export default function UploadPage() {
             <span className="mb-2 block text-[38px]">📷</span>
             탭해서 사진 선택
             <br />
-            <span className="text-[11.5px]">JPG·PNG · 최대 10MB</span>
+            <span className="text-[11.5px]">JPG·PNG·HEIC · 큰 사진은 자동 압축</span>
           </span>
         )}
       </button>
 
-      <label className="text-[12.5px] font-semibold text-[var(--muted)]">
-        오이코스 선택
-      </label>
-      <OikosChips value={oikosId} onChange={setOikosId} />
+      {/* 오이코스: 리더는 계정 조 고정, 관리자는 선택 */}
+      {accountGroup ? (
+        <div className="mb-1 flex items-center gap-2 text-[12.5px] font-semibold text-[var(--muted)]">
+          내 오이코스
+          <span className="rounded-full bg-[var(--accent)] px-2.5 py-[2px] text-[12px] font-bold text-[#1a1530]">
+            {accountGroup}
+          </span>
+        </div>
+      ) : (
+        <>
+          <label className="text-[12.5px] font-semibold text-[var(--muted)]">
+            오이코스 선택
+          </label>
+          <OikosChips value={pickedGroup} onChange={setPickedGroup} />
+        </>
+      )}
 
-      <label className="text-[12.5px] font-semibold text-[var(--muted)]">
+      <label className="mt-2 block text-[12.5px] font-semibold text-[var(--muted)]">
         한 줄 코멘트
       </label>
       <textarea
