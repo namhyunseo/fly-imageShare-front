@@ -3,14 +3,20 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { FloatingStage } from "@/components/FloatingStage";
-import { getPhotos, subscribeFeed } from "@/lib/data";
+import { DisplayControls } from "@/components/DisplayControls";
+import { getImages } from "@/lib/api/images";
+import { subscribeFeed } from "@/lib/api/display";
 import type { Photo } from "@/lib/types";
+
+const CTRL_KEY = "oikos-display-ctrl";
 
 export default function DisplayPage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [sizeScale, setSizeScale] = useState(1);
+  const [count, setCount] = useState(12);
 
   useEffect(() => {
-    getPhotos().then(setPhotos);
+    getImages().then(setPhotos);
 
     // 실시간: 새 사진이 올라오면 무대에 합류
     return subscribeFeed((photo) => {
@@ -20,9 +26,49 @@ export default function DisplayPage() {
     });
   }, []);
 
+  // 현장 조절값 복원
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CTRL_KEY);
+      if (!saved) return;
+      const c = JSON.parse(saved) as { sizeScale?: number; count?: number };
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (typeof c.sizeScale === "number") setSizeScale(c.sizeScale);
+      if (typeof c.count === "number") setCount(c.count);
+    } catch {
+      /* 무시 */
+    }
+  }, []);
+
+  function persist(s: number, c: number) {
+    try {
+      localStorage.setItem(CTRL_KEY, JSON.stringify({ sizeScale: s, count: c }));
+    } catch {
+      /* 무시 */
+    }
+  }
+  function updateSize(v: number) {
+    setSizeScale(v);
+    persist(v, count);
+  }
+  function updateCount(v: number) {
+    setCount(v);
+    persist(sizeScale, v);
+  }
+
   return (
     <section className="relative bg-black">
-      {photos.length > 0 && <FloatingStage photos={photos} />}
+      {photos.length > 0 && (
+        <FloatingStage photos={photos} sizeScale={sizeScale} count={count} />
+      )}
+
+      <DisplayControls
+        sizeScale={sizeScale}
+        count={count}
+        maxCount={Math.max(4, photos.length)}
+        onSizeScale={updateSize}
+        onCount={updateCount}
+      />
 
       <Link
         href="/gallery"

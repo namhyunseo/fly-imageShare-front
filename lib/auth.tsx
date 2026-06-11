@@ -1,11 +1,11 @@
 "use client";
 
 // ============================================================
-// 인증 컨텍스트 (백엔드 실연동)
+// 인증 컨텍스트
 //
 // 리더·관리자: /auth/login으로 토큰 발급 → 세션 유지(localStorage).
-//   백엔드 LoginResponse{token, displayName, role, groupName}을 보관한다.
-// 뷰어: 백엔드 계정이 없음(VIEWER는 발급 안 됨) → 토큰 없는 익명 진입.
+//   세션에 oikosName을 보관(업로드 시 서버가 사용하므로 표시용).
+// 뷰어: 백엔드 계정이 없음 → 토큰 없는 익명 진입(프론트 파생 상태).
 // 갤러리·디스플레이는 공개라 토큰 없이 열람 가능.
 // ============================================================
 import {
@@ -17,20 +17,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { apiFetch } from "./api";
+import { login as apiLogin } from "./api/auth";
 import type { Role, Session } from "./types";
 
 const SESSION_KEY = "oikos-session";
 const VIEWER_KEY = "oikos-viewer";
-
-/** 백엔드 LoginResponse (계약) */
-interface LoginResponse {
-  token: string;
-  username: string;
-  displayName: string;
-  role: string;
-  groupName: string | null;
-}
 
 interface AuthState {
   /** 로그인 세션 (리더·관리자). 뷰어/미입장은 null */
@@ -50,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isViewer, setIsViewer] = useState(false);
 
-  // 초기 1회: 저장된 세션/뷰어 상태 복원 (localStorage 동기화 — mount 시 1회)
+  // 초기 1회: 저장된 세션/뷰어 상태 복원 (localStorage 동기화)
   useEffect(() => {
     try {
       const saved = localStorage.getItem(SESSION_KEY);
@@ -63,12 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
-    const r = await apiFetch<LoginResponse>("/auth/login", {
-      method: "POST",
-      json: { username, password },
-    });
-    const next: Session = { ...r, role: r.role.toUpperCase() as Role };
-
+    const next = await apiLogin(username, password);
     setSession(next);
     setIsViewer(false);
     localStorage.setItem(SESSION_KEY, JSON.stringify(next));

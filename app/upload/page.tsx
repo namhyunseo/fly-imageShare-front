@@ -2,13 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { OikosChips } from "@/components/OikosChips";
 import { SmartImg } from "@/components/SmartImg";
-import { addPhoto, GROUPS } from "@/lib/data";
+import { uploadImage } from "@/lib/api/images";
+import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
 import { canPost } from "@/lib/types";
 import { hasProfanity } from "@/lib/moderation";
-import { ApiError } from "@/lib/api";
 
 const MAX = 50;
 
@@ -19,16 +18,13 @@ export default function UploadPage() {
 
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  // 관리자는 계정에 오이코스가 없어 직접 선택 (리더는 계정 groupName 자동)
-  const [pickedGroup, setPickedGroup] = useState(GROUPS[0]);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const allowed = role !== null && canPost(role);
-  // 리더: 발급 계정에 내장된 오이코스. 관리자: 직접 선택.
-  const accountGroup = session?.groupName ?? null;
-  const groupName = accountGroup ?? pickedGroup;
+  // 오이코스는 서버가 로그인 세션으로 결정. 화면엔 읽기 전용으로만 표시.
+  const oikosName = session?.oikosName ?? null;
 
   function pick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -49,7 +45,11 @@ export default function UploadPage() {
 
     setBusy(true);
     try {
-      await addPhoto({ groupName, comment: comment.trim() }, file, session?.token ?? null);
+      // 오이코스는 보내지 않음 — 서버가 세션으로 결정. dev 인자는 mock 표시 전용.
+      await uploadImage(comment.trim(), file, session?.token ?? null, {
+        oikosName: oikosName ?? "",
+        previewUrl: preview ?? "",
+      });
       router.push("/gallery");
     } catch (e) {
       setError(
@@ -78,6 +78,12 @@ export default function UploadPage() {
           <div>
             <b>게시 권한</b>이 있어요. 올린 사진은 갤러리와 빔 화면에 바로
             나타나요.
+            {oikosName && (
+              <>
+                {" "}내 오이코스는{" "}
+                <b className="text-[var(--accent2)]">{oikosName}</b> 예요.
+              </>
+            )}
           </div>
         </div>
       ) : (
@@ -86,10 +92,7 @@ export default function UploadPage() {
           <div>
             <b>뷰어</b>는 열람만 가능해요. 게시는 오이코스 리더 이상만 할 수
             있어요.{" "}
-            <button
-              onClick={() => router.push("/login")}
-              className="underline"
-            >
+            <button onClick={() => router.push("/login")} className="underline">
               로그인
             </button>
           </div>
@@ -126,24 +129,7 @@ export default function UploadPage() {
         )}
       </button>
 
-      {/* 오이코스: 리더는 계정 조 고정, 관리자는 선택 */}
-      {accountGroup ? (
-        <div className="mb-1 flex items-center gap-2 text-[12.5px] font-semibold text-[var(--muted)]">
-          내 오이코스
-          <span className="rounded-full bg-[var(--accent)] px-2.5 py-[2px] text-[12px] font-bold text-[#1a1530]">
-            {accountGroup}
-          </span>
-        </div>
-      ) : (
-        <>
-          <label className="text-[12.5px] font-semibold text-[var(--muted)]">
-            오이코스 선택
-          </label>
-          <OikosChips value={pickedGroup} onChange={setPickedGroup} />
-        </>
-      )}
-
-      <label className="mt-2 block text-[12.5px] font-semibold text-[var(--muted)]">
+      <label className="block text-[12.5px] font-semibold text-[var(--muted)]">
         한 줄 코멘트
       </label>
       <textarea
@@ -175,7 +161,8 @@ export default function UploadPage() {
 
       <div className="mt-6 border-t border-[var(--line)] pt-4 text-[11.5px] leading-relaxed text-[var(--muted)]">
         권한 3단계 · <b>관리자</b>: 전체 관리/모더레이션 · <b>리더</b>: 게시 ·{" "}
-        <b>뷰어</b>: 열람. 비속어·부적절 단어는 자동 필터링됩니다.
+        <b>뷰어</b>: 열람. 오이코스는 로그인 계정 기준으로 자동 지정돼요.
+        비속어·부적절 단어는 자동 필터링됩니다.
       </div>
     </div>
   );
