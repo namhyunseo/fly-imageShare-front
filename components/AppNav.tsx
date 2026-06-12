@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { ROLE_LABEL, canPost } from "@/lib/types";
 import { IconGallery, IconUpload, IconBeam, IconUser } from "@/components/icons";
+import { LoginSheet } from "@/components/LoginSheet";
 
 // 빔(/display)은 현장 프로젝터 송출용 — 관리자에게만 탭 노출.
 // 올리기는 게시 권한(리더·관리자)에게만 노출. 뷰어·미입장은 숨김.
@@ -26,6 +27,8 @@ export function AppNav() {
   const { role } = useAuth();
   // 스크롤 다운 → 숨김, 스크롤 업 → 표시 (맨 위에선 항상 표시)
   const [hidden, setHidden] = useState(false);
+  // 로그인 바텀시트
+  const [loginOpen, setLoginOpen] = useState(false);
 
   useEffect(() => {
     let last = window.scrollY;
@@ -51,6 +54,7 @@ export function AppNav() {
   if (HIDDEN_ON.includes(pathname)) return null;
 
   return (
+    <>
     <nav
       className={`fixed inset-x-0 bottom-0 z-50 bg-[#ffffff] pb-[env(safe-area-inset-bottom)] transition-transform duration-300 ease-out before:pointer-events-none before:absolute before:inset-x-0 before:-top-9 before:h-9 before:bg-gradient-to-t before:from-[#ffffff] before:to-transparent before:content-[''] ${
         hidden ? "translate-y-full" : "translate-y-0"
@@ -80,19 +84,22 @@ export function AppNav() {
             </Link>
           );
         })}
-        {/* 계정 — 로그인 상태(역할) 또는 로그인 유도. 다른 탭과 동일한 탭 형태로 정렬. */}
-        <Link
-          href="/login"
+        {/* 계정 — 로그인 상태(역할) 또는 로그인 유도. 탭하면 바텀시트가 올라온다. */}
+        <button
+          type="button"
+          onClick={() => setLoginOpen(true)}
           className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition ${
-            pathname.startsWith("/login")
+            loginOpen
               ? "text-[var(--accent)]"
               : "text-[var(--muted)] hover:text-[var(--text)]"
           }`}
         >
           <IconUser className="h-[22px] w-[22px]" />
           {role ? ROLE_LABEL[role] : "로그인"}
-        </Link>
+        </button>
       </div>
     </nav>
+    <LoginSheet open={loginOpen} onClose={() => setLoginOpen(false)} />
+    </>
   );
 }
