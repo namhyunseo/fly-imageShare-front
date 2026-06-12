@@ -8,13 +8,14 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { ROLE_LABEL, canPost } from "@/lib/types";
-import { IconGallery, IconUpload, IconBeam, IconLock } from "@/components/icons";
+import { IconGallery, IconUpload, IconBeam, IconUser } from "@/components/icons";
 
 // 빔(/display)은 현장 프로젝터 송출용 — 관리자에게만 탭 노출.
+// 올리기는 게시 권한(리더·관리자)에게만 노출. 뷰어·미입장은 숨김.
 // (URL 직접 접근은 막지 않음. 데이터가 공개라 보안 이슈 없음.)
 const TABS = [
   { href: "/gallery", label: "갤러리", Icon: IconGallery },
-  { href: "/upload", label: "올리기", Icon: IconUpload },
+  { href: "/upload", label: "올리기", Icon: IconUpload, postOnly: true },
   { href: "/display", label: "빔", Icon: IconBeam, adminOnly: true },
 ] as const;
 
@@ -56,10 +57,14 @@ export function AppNav() {
       }`}
     >
       <div className="mx-auto flex max-w-[460px] items-stretch">
-        {TABS.filter((t) => !("adminOnly" in t && t.adminOnly) || role === "ADMIN").map((t) => {
+        {TABS.filter((t) => {
+          if ("adminOnly" in t && t.adminOnly) return role === "ADMIN";
+          // 올리기: 게시 권한(리더·관리자)에게만. 뷰어·미입장은 숨김.
+          if ("postOnly" in t && t.postOnly) return role !== null && canPost(role);
+          return true;
+        }).map((t) => {
           const active = pathname.startsWith(t.href);
-          const locked = t.href === "/upload" && role !== null && !canPost(role);
-          const Icon = locked ? IconLock : t.Icon;
+          const Icon = t.Icon;
           return (
             <Link
               key={t.href}
@@ -75,21 +80,18 @@ export function AppNav() {
             </Link>
           );
         })}
-        <div className="flex items-center px-3">
-          <Link
-            href="/login"
-            className="rounded-full border border-[var(--line)] px-3 py-1.5 text-[11px] text-[var(--muted)]"
-          >
-            {role ? (
-              <>
-                {role === "VIEWER" ? "👤 " : "✍️ "}
-                <b className="text-[var(--accent)]">{ROLE_LABEL[role]}</b>
-              </>
-            ) : (
-              "로그인"
-            )}
-          </Link>
-        </div>
+        {/* 계정 — 로그인 상태(역할) 또는 로그인 유도. 다른 탭과 동일한 탭 형태로 정렬. */}
+        <Link
+          href="/login"
+          className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition ${
+            pathname.startsWith("/login")
+              ? "text-[var(--accent)]"
+              : "text-[var(--muted)] hover:text-[var(--text)]"
+          }`}
+        >
+          <IconUser className="h-[22px] w-[22px]" />
+          {role ? ROLE_LABEL[role] : "로그인"}
+        </Link>
       </div>
     </nav>
   );

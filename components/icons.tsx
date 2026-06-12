@@ -71,6 +71,16 @@ export function IconLock(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** 사람 — 계정/로그인 */
+export function IconUser(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props} aria-hidden>
+      <circle cx="12" cy="8" r="3.6" />
+      <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+    </svg>
+  );
+}
+
 /** 연필 — 게시 권한/편집 */
 export function IconEdit(props: SVGProps<SVGSVGElement>) {
   return (
