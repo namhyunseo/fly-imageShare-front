@@ -8,8 +8,15 @@ import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
 import { canPost } from "@/lib/types";
 import { hasProfanity } from "@/lib/moderation";
+import { IconCamera, IconLock, IconWarning, IconClose } from "@/components/icons";
 
 const MAX = 50;
+const EMOJIS = ["🙏", "🔥", "😂", "❤️", "🙌", "✨", "🍚", "📸", "☀️", "🎉"];
+
+/** 이미지 파일 여부 (HEIC는 type이 비어 있을 수 있어 확장자도 확인) */
+function isImage(f: File): boolean {
+  return f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name);
+}
 
 export default function UploadPage() {
   const { role, session } = useAuth();
@@ -21,17 +28,45 @@ export default function UploadPage() {
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
   const allowed = role !== null && canPost(role);
   // 오이코스는 서버가 로그인 세션으로 결정. 화면엔 읽기 전용으로만 표시.
   const oikosName = session?.oikosName ?? null;
 
+  function select(f: File) {
+    if (!isImage(f)) {
+      setError("이미지 파일만 올릴 수 있어요. (JPG · PNG · HEIC)");
+      return;
+    }
+    if (preview) URL.revokeObjectURL(preview);
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
+    setError(null);
+  }
+
   function pick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (f) {
-      setFile(f);
-      setPreview(URL.createObjectURL(f));
-    }
+    if (f) select(f);
+  }
+
+  function clearFile() {
+    if (preview) URL.revokeObjectURL(preview);
+    setFile(null);
+    setPreview(null);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    if (!allowed) return;
+    const f = e.dataTransfer.files?.[0];
+    if (f) select(f);
+  }
+
+  function addEmoji(em: string) {
+    setComment((c) => (c.length + em.length <= MAX ? c + em : c));
   }
 
   async function publish() {
@@ -64,35 +99,30 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[460px] px-[18px] pb-[60px] pt-[22px]">
-      <h1 className="mb-0.5 text-[22px] font-semibold tracking-tight">
-        사진 올리기
-      </h1>
-      <p className="mb-5 text-[13.5px] leading-relaxed text-[var(--muted)]">
-        우리 오이코스의 한 순간을 올려요. 한 번에 사진 1장 + 코멘트 1개.
-      </p>
-
-      {allowed ? (
-        <div className="mb-[18px] flex items-start gap-2.5 rounded-xl border border-[rgba(124,108,255,0.4)] bg-[rgba(124,108,255,0.12)] px-3.5 py-3 text-[12.5px] text-[#cfc8ff]">
-          ✍️
-          <div>
-            <b>게시 권한</b>이 있어요. 올린 사진은 갤러리와 빔 화면에 바로
-            나타나요.
-            {oikosName && (
-              <>
-                {" "}내 오이코스는{" "}
-                <b className="text-[var(--accent2)]">{oikosName}</b> 예요.
-              </>
-            )}
-          </div>
+    <div className="animate-fade-up mx-auto max-w-[460px] px-[18px] pb-[calc(80px+env(safe-area-inset-bottom))] pt-[22px]">
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-[26px] font-bold tracking-tight">사진 올리기</h1>
+          <p className="mt-1 break-keep text-[13px] text-[var(--muted)]">
+            한 장의 순간을 남겨요
+          </p>
         </div>
-      ) : (
-        <div className="mb-[18px] flex items-start gap-2.5 rounded-xl border border-[rgba(255,180,84,0.4)] bg-[rgba(255,180,84,0.1)] px-3.5 py-3 text-[12.5px] text-[#ffe0b0]">
-          🔒
-          <div>
-            <b>뷰어</b>는 열람만 가능해요. 게시는 오이코스 리더 이상만 할 수
-            있어요.{" "}
-            <button onClick={() => router.push("/login")} className="underline">
+        {allowed && oikosName && (
+          <span className="mt-1 shrink-0 rounded-full bg-[rgba(47,111,237,0.1)] px-3 py-1 text-[12.5px] font-bold text-[var(--accent)]">
+            오이코스 {oikosName}
+          </span>
+        )}
+      </div>
+
+      {!allowed && (
+        <div className="mb-[18px] flex items-start gap-2.5 rounded-xl border border-[rgba(232,144,42,0.4)] bg-[rgba(232,144,42,0.1)] px-3.5 py-3 text-[12.5px] text-[#a8631a]">
+          <IconLock className="mt-px h-4 w-4 shrink-0" />
+          <div className="break-keep">
+            <b>뷰어</b>는 열람만 가능해요. 게시는 리더 이상만 할 수 있어요.{" "}
+            <button
+              onClick={() => router.push("/login")}
+              className="font-semibold underline"
+            >
               로그인
             </button>
           </div>
@@ -106,47 +136,108 @@ export default function UploadPage() {
         className="hidden"
         onChange={pick}
       />
-      <button
-        type="button"
-        onClick={() => fileRef.current?.click()}
-        disabled={!allowed}
-        className="mb-3.5 w-full rounded-[var(--radius)] border-2 border-dashed border-[var(--line)] bg-[#16182e] text-center text-[var(--muted)] disabled:opacity-50"
-        style={{ padding: preview ? 8 : "34px 18px" }}
-      >
-        {preview ? (
-          <SmartImg
-            src={preview}
-            alt="preview"
-            className="block h-[200px] w-full rounded-xl object-cover"
-          />
-        ) : (
-          <span className="block">
-            <span className="mb-2 block text-[38px]">📷</span>
-            탭해서 사진 선택
-            <br />
-            <span className="text-[11.5px]">JPG·PNG·HEIC · 큰 사진은 자동 압축</span>
-          </span>
-        )}
-      </button>
 
-      <label className="block text-[12.5px] font-semibold text-[var(--muted)]">
-        한 줄 코멘트
-      </label>
+      {preview ? (
+        <div className="mb-4">
+          <div className="relative overflow-hidden rounded-[var(--radius)] border border-[var(--line)] bg-[var(--bg-soft)]">
+            <SmartImg
+              src={preview}
+              alt="미리보기"
+              className="mx-auto block max-h-[340px] w-full object-contain"
+            />
+            <button
+              type="button"
+              onClick={clearFile}
+              aria-label="사진 제거"
+              className="tappable absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm hover:bg-black/70"
+            >
+              <IconClose className="h-[18px] w-[18px]" />
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="tappable mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--bg-soft)] py-2.5 text-[13px] font-semibold text-[var(--text)] hover:bg-[var(--line)]"
+          >
+            <IconCamera className="h-[18px] w-[18px]" />
+            다른 사진 선택
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (allowed) setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={onDrop}
+          disabled={!allowed}
+          className={`tappable mb-4 w-full rounded-[var(--radius)] border-2 border-dashed px-[18px] py-10 text-center disabled:opacity-50 ${
+            dragOver
+              ? "border-[var(--accent)] bg-[rgba(47,111,237,0.06)] text-[var(--accent)]"
+              : "border-[var(--line)] bg-[var(--bg-soft)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+          }`}
+        >
+          <span className="block">
+            <IconCamera className="mx-auto mb-2 h-10 w-10" />
+            <span className="font-semibold text-[var(--text)]">
+              탭해서 사진 선택
+            </span>
+            <br />
+            <span className="break-keep text-[11.5px] text-[var(--muted)]">
+              끌어다 놓아도 돼요 · JPG · PNG · HEIC
+            </span>
+          </span>
+        </button>
+      )}
+
+      <div className="mb-1.5 flex items-baseline justify-between">
+        <label htmlFor="comment" className="text-[12.5px] font-semibold text-[var(--muted)]">
+          한 줄 코멘트{" "}
+          <span className="font-normal opacity-70">(선택)</span>
+        </label>
+        <span
+          className={`text-[11.5px] ${
+            comment.length >= MAX
+              ? "font-semibold text-[#c0392b]"
+              : comment.length >= MAX - 10
+                ? "text-[#a8631a]"
+                : "text-[var(--muted)]"
+          }`}
+        >
+          {comment.length}/{MAX}
+        </span>
+      </div>
       <textarea
+        id="comment"
         value={comment}
         maxLength={MAX}
         onChange={(e) => setComment(e.target.value)}
         placeholder="예) 우리 조 점심 최고였다 🍚"
         disabled={!allowed}
-        className="min-h-16 w-full resize-none rounded-xl border border-[var(--line)] bg-[#16182e] px-3.5 py-3 text-[14px] text-[var(--text)] outline-none disabled:opacity-50"
+        className="field min-h-16 w-full resize-none rounded-xl border border-[var(--line)] bg-[var(--bg-soft)] px-3.5 py-3 text-[14px] text-[var(--text)] outline-none disabled:opacity-50"
       />
-      <div className="mb-4 mt-1 text-right text-[11.5px] text-[var(--muted)]">
-        {comment.length}/{MAX}
+
+      {/* 빠른 이모지 — 탭 한 번으로 코멘트에 추가 */}
+      <div className="mb-4 mt-2 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {EMOJIS.map((em) => (
+          <button
+            key={em}
+            type="button"
+            disabled={!allowed}
+            onClick={() => addEmoji(em)}
+            className="tappable grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--line)] bg-[var(--bg-soft)] text-[17px] hover:bg-[var(--line)] disabled:opacity-50"
+          >
+            {em}
+          </button>
+        ))}
       </div>
 
       {error && (
-        <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-[rgba(255,107,107,0.45)] bg-[rgba(255,107,107,0.1)] px-3.5 py-3 text-[12.5px] text-[#ff9f9f]">
-          ⚠️
+        <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-[rgba(200,50,40,0.3)] bg-[rgba(200,50,40,0.07)] px-3.5 py-3 text-[12.5px] text-[#c0392b]">
+          <IconWarning className="mt-px h-4 w-4 shrink-0" />
           <div>{error}</div>
         </div>
       )}
@@ -154,16 +245,13 @@ export default function UploadPage() {
       <button
         onClick={publish}
         disabled={!allowed || !preview || busy}
-        className="w-full rounded-xl bg-gradient-to-br from-[var(--accent)] to-[#ff9d54] py-3 text-[15px] font-bold text-[#1a1530] disabled:opacity-40"
+        className="tappable flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[#5b9dff] py-3 text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(47,111,237,0.25)] disabled:opacity-40 disabled:shadow-none"
       >
+        {busy && (
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+        )}
         {busy ? "올리는 중…" : "올리기"}
       </button>
-
-      <div className="mt-6 border-t border-[var(--line)] pt-4 text-[11.5px] leading-relaxed text-[var(--muted)]">
-        권한 3단계 · <b>관리자</b>: 전체 관리/모더레이션 · <b>리더</b>: 게시 ·{" "}
-        <b>뷰어</b>: 열람. 오이코스는 로그인 계정 기준으로 자동 지정돼요.
-        비속어·부적절 단어는 자동 필터링됩니다.
-      </div>
     </div>
   );
 }

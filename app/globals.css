@@ -1,22 +1,24 @@
 @import "tailwindcss";
 
 /* ============================================================
-   오이코스 셰어 — 디자인 토큰 (시안 mockup.html 이식)
-   따뜻한 어둠(앰버·촛불 톤) + 손글씨 폰트
+   오이코스 셰어 — 디자인 토큰
+   뷰어·리더 화면: 밝은 쿨톤(화이트·블루 + 코발트 액센트).
+   빔(/display)만 검은 무대 — .stage/.float 가 자체적으로 어둡게 유지.
    ============================================================ */
 :root {
-  --bg: #0f1020;
-  --bg-soft: #1a1c34;
-  --card: #232544;
-  --line: #34375f;
-  --text: #eef0ff;
-  --muted: #9aa0c8;
-  --accent: #ffb454;
-  --accent2: #7c6cff;
-  --good: #5ad19a;
+  --bg: #f4f7fb;
+  --bg-soft: #e7eef7;
+  --card: #ffffff;
+  --line: #d7e0ec;
+  --text: #1b2433;
+  --muted: #6b7689;
+  --accent: #2f6fed;
+  --accent2: #6b5bff;
+  --good: #2fa372;
   --radius: 16px;
-  --grad-night: radial-gradient(120% 100% at 50% 0%, #2a2350 0%, #14132b 55%, #0a0a18 100%);
-  /* 빔 무대 — 촛불 같은 앰버 어둠 */
+  /* 로그인 등 진입 화면 배경 — 밝은 쿨톤 그라데이션 */
+  --grad-night: radial-gradient(120% 100% at 50% 0%, #eef4ff 0%, #e6eefb 55%, #dde7f6 100%);
+  /* 빔 무대 — 촛불 같은 앰버 어둠 (라이트 전환 대상 아님) */
   --grad-stage: radial-gradient(140% 120% at 50% 28%, #34271c 0%, #1d150e 48%, #0c0805 100%);
 }
 
@@ -30,26 +32,59 @@
   --color-accent: var(--accent);
   --color-accent2: var(--accent2);
   --color-good: var(--good);
-  --font-hand: var(--font-gaegu);
-  --font-script: var(--font-nanum-pen);
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
+html { background: var(--bg); }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
-    "Pretendard", "Noto Sans KR", sans-serif;
+  font-family: "Pretendard Variable", Pretendard, -apple-system,
+    BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   min-height: 100dvh;
+  /* 모바일에서 탭할 때 생기는 회색 하이라이트 제거 */
+  -webkit-tap-highlight-color: transparent;
 }
 
 button { font-family: inherit; cursor: pointer; }
+button:disabled { cursor: default; }
 
-/* 폰트 유틸 */
-.font-script { font-family: var(--font-nanum-pen), cursive; }
-.font-hand { font-family: var(--font-gaegu), cursive; }
+/* 폰트 유틸 (손글씨 폰트) 제거 — 전역 Pretendard 사용 */
+
+/* 인터랙티브 요소 공통 — 부드러운 전환 + 누름 피드백 */
+.tappable { transition: transform .12s ease, opacity .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.tappable:active:not(:disabled) { transform: scale(0.98); }
+
+/* 입력 포커스 링 (쿨톤 액센트) */
+.field {
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 111, 237, 0.16);
+}
+
+/* 콘텐츠 진입 — 살짝 떠오르는 페이드인 (스태거는 인라인 delay로) */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fadeUp .42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* 불투명도만 페이드 (스토리에서 오이코스 전환 시) */
+@keyframes fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade { animation: fade .28s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-fade { animation: none; }
+  .tappable:active:not(:disabled) { transform: none; }
+}
 
 /* 스크롤바 살짝 정돈 */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
