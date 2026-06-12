@@ -8,19 +8,23 @@ export function DisplayControls({
   sizeScale,
   count,
   maxCount,
+  shuffleMs,
   onSizeScale,
   onCount,
+  onShuffleMs,
 }: {
   sizeScale: number;
   count: number;
   maxCount: number;
+  shuffleMs: number;
   onSizeScale: (v: number) => void;
   onCount: (v: number) => void;
+  onShuffleMs: (v: number) => void;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="absolute left-4 top-4 z-30">
+    <div className="absolute left-4 top-4 z-[200]">
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label="빔 조절 패널"
@@ -62,6 +66,23 @@ export function DisplayControls({
             step={1}
             value={count}
             onChange={(e) => onCount(Number(e.target.value))}
+            className="mb-4 w-full accent-[var(--accent)]"
+          />
+
+          <label className="mb-1 flex items-center justify-between text-[11.5px] text-white/55">
+            <span>바뀌는 속도</span>
+            <span className="font-bold text-[var(--accent)]">
+              {(shuffleMs / 1000).toFixed(0)}초마다
+            </span>
+          </label>
+          {/* 슬라이더를 뒤집어 오른쪽일수록 빠르게(주기 짧게) 보이도록 */}
+          <input
+            type="range"
+            min={2}
+            max={20}
+            step={1}
+            value={22 - shuffleMs / 1000}
+            onChange={(e) => onShuffleMs((22 - Number(e.target.value)) * 1000)}
             className="w-full accent-[var(--accent)]"
           />
 
