@@ -7,6 +7,7 @@ import { uploadImage } from "@/lib/api/images";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
 import { canPost } from "@/lib/types";
+import { currentDay } from "@/lib/event";
 import { hasProfanity } from "@/lib/moderation";
 import { IconCamera, IconLock, IconWarning, IconClose } from "@/components/icons";
 
@@ -81,7 +82,8 @@ export default function UploadPage() {
     setBusy(true);
     try {
       // 오이코스는 보내지 않음 — 서버가 세션으로 결정. dev 인자는 mock 표시 전용.
-      await uploadImage(comment.trim(), file, session?.token ?? null, {
+      // day는 Task #2에서 사용자 선택값으로 교체. 지금은 현재 day 자동.
+      await uploadImage(comment.trim(), file, currentDay(), session?.token ?? null, {
         oikosName: oikosName ?? "",
         previewUrl: preview ?? "",
       });
