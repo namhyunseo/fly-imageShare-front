@@ -35,6 +35,7 @@ export default function UploadPage() {
   const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDay(currentDay());
   }, []);
 

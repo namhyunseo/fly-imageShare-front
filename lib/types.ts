@@ -43,6 +43,16 @@ export interface Affiliation {
   type: AffiliationType;
 }
 
+/** 운영 계정 — 관리자 사용자 관리(GET /admin/users) 정합 */
+export interface AdminUser {
+  id: string;
+  username: string;
+  displayName: string;
+  role: Role;
+  /** 소속명. 관리자는 없을 수 있음(null). */
+  affiliationName: string | null;
+}
+
 /** 사진 — 백엔드 ImageResponse 정합 */
 export interface Photo {
   /** 백엔드 Long → string */

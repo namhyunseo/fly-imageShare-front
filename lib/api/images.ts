@@ -10,7 +10,7 @@ import { USE_MOCK, apiFetch } from "./client";
 import { mockDelete, mockGetImage, mockGetImages, mockUpdate, mockUpload } from "./mock";
 
 /** 백엔드 ImageResponse (계약) */
-interface ImageResponse {
+export interface ImageResponse {
   id: number;
   comment: string;
   oikosName: string;

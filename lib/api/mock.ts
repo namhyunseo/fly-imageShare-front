@@ -4,7 +4,7 @@
 // 운영 경로(실서버)와 섞이지 않도록 mock 구현을 이 파일에 격리한다.
 // 각 API 모듈은 USE_MOCK 일 때만 여기 함수를 호출한다.
 // ============================================================
-import type { Affiliation, Photo, Session } from "../types";
+import type { Affiliation, AdminUser, Photo, Session } from "../types";
 import type { Day } from "../event";
 
 // unsplash 단체 사진(수련회 분위기). 다양한 비율로 빔 배치 확인용.
@@ -147,4 +147,48 @@ export async function mockUpdate(
 export async function mockDelete(id: string): Promise<void> {
   const i = photos.findIndex((p) => p.id === id);
   if (i !== -1) photos.splice(i, 1);
+}
+
+// ── 관리자(admin) mock ──────────────────────────────────────
+
+const users: AdminUser[] = [
+  { id: "u-1", username: "1-1", displayName: "1-1", role: "LEADER", affiliationName: "1-1" },
+  { id: "u-2", username: "1-2", displayName: "1-2", role: "LEADER", affiliationName: "1-2" },
+  { id: "u-3", username: "1-3", displayName: "1-3", role: "LEADER", affiliationName: "1-3" },
+  { id: "u-4", username: "1-4", displayName: "1-4", role: "LEADER", affiliationName: "1-4" },
+  { id: "u-5", username: "1-5", displayName: "1-5", role: "LEADER", affiliationName: "1-5" },
+  { id: "u-p", username: "president-1", displayName: "회장단 1", role: "LEADER", affiliationName: "회장단" },
+  { id: "u-w", username: "worship-1", displayName: "예배팀 1", role: "LEADER", affiliationName: "예배팀" },
+  { id: "u-admin", username: "admin", displayName: "Administrator", role: "ADMIN", affiliationName: null },
+];
+
+/** 관리자 게시물 목록 — 숨김 포함, 최신순 */
+export async function mockAdminImages(): Promise<Photo[]> {
+  return [...photos].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+}
+
+/** 노출/숨김 토글 (삭제 아님 — 복구 가능) */
+export async function mockSetHidden(id: string, hidden: boolean): Promise<Photo> {
+  const p = photos.find((x) => x.id === id);
+  if (!p) throw new Error("사진을 찾을 수 없어요.");
+  p.hidden = hidden;
+  return p;
+}
+
+export async function mockAdminUsers(): Promise<AdminUser[]> {
+  return [...users];
+}
+
+export async function mockUpdateUser(
+  id: string,
+  patch: Partial<Pick<AdminUser, "role" | "affiliationName" | "displayName">>,
+): Promise<AdminUser> {
+  const u = users.find((x) => x.id === id);
+  if (!u) throw new Error("사용자를 찾을 수 없어요.");
+  Object.assign(u, patch);
+  return u;
+}
+
+export async function mockAffiliations(): Promise<Affiliation[]> {
+  return [...AFFILIATIONS];
 }
