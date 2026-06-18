@@ -127,6 +127,23 @@ export async function mockUpload(
   return photo;
 }
 
+export async function mockGetImage(id: string): Promise<Photo | null> {
+  return photos.find((p) => p.id === id) ?? null;
+}
+
+/** 사진 수정(코멘트·day·교체 이미지). 업로더 본인 또는 관리자. */
+export async function mockUpdate(
+  id: string,
+  patch: { comment: string; day: Day; previewUrl?: string },
+): Promise<Photo> {
+  const p = photos.find((x) => x.id === id);
+  if (!p) throw new Error("사진을 찾을 수 없어요.");
+  p.comment = patch.comment;
+  p.day = patch.day;
+  if (patch.previewUrl) p.imageUrl = patch.previewUrl;
+  return p;
+}
+
 export async function mockDelete(id: string): Promise<void> {
   const i = photos.findIndex((p) => p.id === id);
   if (i !== -1) photos.splice(i, 1);

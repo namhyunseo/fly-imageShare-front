@@ -75,6 +75,26 @@ export function affiliationOf(p: Photo): string {
   return p.affiliationName ?? p.oikosName;
 }
 
+/**
+ * 이 사진을 수정·삭제할 수 있는지 — 관리자이거나 업로더 본인일 때.
+ *
+ * 본인 판별은 백엔드가 주는 업로더 식별자(uploadedBy)와 세션을 맞춰야
+ * 정확하다. 계약 확정 전까지는 표시명/오이코스명으로 근사한다.
+ */
+export function canManagePhoto(
+  photo: Photo,
+  session: Session | null,
+  role: Role | null,
+): boolean {
+  if (role === "ADMIN") return true;
+  if (!session) return false;
+  return (
+    photo.uploadedBy === session.displayName ||
+    photo.uploadedBy === session.username ||
+    (session.oikosName !== null && photo.oikosName === session.oikosName)
+  );
+}
+
 /** 로그인 세션 — 백엔드 LoginResponse 정합 */
 export interface Session {
   token: string;

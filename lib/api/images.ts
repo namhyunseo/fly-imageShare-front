@@ -7,7 +7,7 @@
 import type { Photo } from "../types";
 import type { Day } from "../event";
 import { USE_MOCK, apiFetch } from "./client";
-import { mockDelete, mockGetImages, mockUpload } from "./mock";
+import { mockDelete, mockGetImage, mockGetImages, mockUpdate, mockUpload } from "./mock";
 
 /** 백엔드 ImageResponse (계약) */
 interface ImageResponse {
@@ -77,7 +77,41 @@ export async function uploadImage(
   return mapImage(created);
 }
 
-/** 사진 삭제 (관리자 전용) */
+/** 단일 사진 조회 (편집 화면 진입 시). 없으면 null. */
+export async function getImage(id: string): Promise<Photo | null> {
+  if (USE_MOCK) return mockGetImage(id);
+  try {
+    return mapImage(await apiFetch<ImageResponse>(`/images/${id}`));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 사진 수정 (업로더 본인·관리자). 코멘트·day, 그리고 선택적으로 이미지 교체.
+ * previewUrl 은 mock 표시 전용.
+ */
+export async function updateImage(
+  id: string,
+  comment: string,
+  day: Day,
+  token: string | null,
+  opts?: { file?: File; previewUrl?: string },
+): Promise<Photo> {
+  if (USE_MOCK) return mockUpdate(id, { comment, day, previewUrl: opts?.previewUrl });
+  const form = new FormData();
+  form.append("comment", comment);
+  form.append("day", day);
+  if (opts?.file) form.append("file", opts.file);
+  const updated = await apiFetch<ImageResponse>(`/images/${id}`, {
+    method: "PATCH",
+    formData: form,
+    token,
+  });
+  return mapImage(updated);
+}
+
+/** 사진 삭제 (업로더 본인·관리자) */
 export async function deleteImage(id: string, token: string | null): Promise<void> {
   if (USE_MOCK) return mockDelete(id);
   await apiFetch<void>(`/images/${id}`, { method: "DELETE", token, noContent: true });
