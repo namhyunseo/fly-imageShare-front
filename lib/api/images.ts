@@ -38,12 +38,15 @@ export function mapImage(r: ImageResponse): Photo {
     affiliationKey: r.affiliationKey,
     affiliationName: r.affiliationName ?? "",
     affiliationType: r.affiliationType as AffiliationType | undefined,
+    tagKey: r.tagKey,
+    tagName: r.tagName,
     day: r.day as Day | undefined,
     imageUrl: r.imageUrl,
     thumbnailUrl: r.thumbnailUrl,
     uploadedBy: r.uploadedBy,
     hidden: r.hidden,
     createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
     width: r.width,
     height: r.height,
   };
@@ -66,14 +69,21 @@ export async function uploadImage(
   file: File,
   day: Day,
   token: string | null,
-  dev?: { affiliationName: string; previewUrl: string },
+  opts?: { tagKey?: string | null; dev?: { affiliationName: string; previewUrl: string } },
 ): Promise<Photo> {
   if (USE_MOCK)
-    return mockUpload(comment, dev?.affiliationName ?? "1-1", dev?.previewUrl ?? "", day);
+    return mockUpload(
+      comment,
+      opts?.dev?.affiliationName ?? "1-1",
+      opts?.dev?.previewUrl ?? "",
+      day,
+      opts?.tagKey ?? null,
+    );
   const form = new FormData();
   form.append("file", file);
   form.append("comment", comment);
   form.append("day", day);
+  if (opts?.tagKey) form.append("tagKey", opts.tagKey);
   const created = await apiFetch<ImageResponse>("/images", {
     method: "POST",
     formData: form,
@@ -93,7 +103,8 @@ export async function getImage(id: string): Promise<Photo | null> {
 }
 
 /**
- * 사진 수정 (업로더 본인·관리자). 코멘트·day, 그리고 선택적으로 이미지 교체.
+ * 사진 수정. 코멘트·day·태그, 그리고 선택적으로 이미지 교체.
+ * 관리자 콘솔에서의 수정은 admin 경로(PATCH /admin/images/{id})를 쓴다.
  * previewUrl 은 mock 표시 전용.
  */
 export async function updateImage(
@@ -101,14 +112,22 @@ export async function updateImage(
   comment: string,
   day: Day,
   token: string | null,
-  opts?: { file?: File; previewUrl?: string },
+  opts?: { file?: File; tagKey?: string | null; previewUrl?: string; admin?: boolean },
 ): Promise<Photo> {
-  if (USE_MOCK) return mockUpdate(id, { comment, day, previewUrl: opts?.previewUrl });
+  if (USE_MOCK)
+    return mockUpdate(id, {
+      comment,
+      day,
+      tagKey: opts?.tagKey ?? null,
+      previewUrl: opts?.previewUrl,
+    });
   const form = new FormData();
   form.append("comment", comment);
   form.append("day", day);
+  if (opts?.tagKey) form.append("tagKey", opts.tagKey);
   if (opts?.file) form.append("file", opts.file);
-  const updated = await apiFetch<ImageResponse>(`/images/${id}`, {
+  const path = opts?.admin ? `/admin/images/${id}` : `/images/${id}`;
+  const updated = await apiFetch<ImageResponse>(path, {
     method: "PATCH",
     formData: form,
     token,

@@ -59,6 +59,17 @@ export interface AdminUser {
   active?: boolean;
 }
 
+/** 프로그램 태그 — 백엔드 TagResponse 정합 */
+export interface Tag {
+  id: string;
+  tagKey: string;
+  tagName: string;
+  active: boolean;
+  createdAt?: string;
+  /** 이 태그가 붙은 사진 수 (관리자 화면용) */
+  imageCount?: number;
+}
+
 /** 사진 — 백엔드 ImageResponse 정합 */
 export interface Photo {
   /** 백엔드 Long → string */
@@ -69,11 +80,14 @@ export interface Photo {
   /** 소속 표시명 (예: "1-3", "회장단") — 표시·필터의 기준 */
   affiliationName: string;
   affiliationType?: AffiliationType;
+  /** 프로그램 태그 */
+  tagKey?: string;
+  tagName?: string;
   /** 행사 진행일. 업로드 시 필수 선택값. */
   day?: Day;
   /** "/images/{id}/content" 상대경로 (또는 S3/R2 절대 URL) */
   imageUrl: string;
-  /** 썸네일 URL (백엔드 제공 시) */
+  /** 목록용 썸네일 URL (백엔드 제공 시) */
   thumbnailUrl?: string;
   /** 업로더 표시명 */
   uploadedBy?: string;
@@ -81,6 +95,7 @@ export interface Photo {
   hidden?: boolean;
   /** ISO 8601 */
   createdAt: string;
+  updatedAt?: string;
   /** 원본 픽셀 크기 (빔에서 원본 비율 표시용) */
   width?: number;
   height?: number;

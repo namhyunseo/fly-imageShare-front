@@ -12,7 +12,11 @@ import {
   mockAdminImages,
   mockAdminUsers,
   mockAffiliations,
+  mockCreateUser,
+  mockDeleteUser,
+  mockResetPassword,
   mockSetHidden,
+  mockSetUserActive,
   mockUpdateUser,
 } from "./mock";
 
@@ -84,10 +88,10 @@ export async function getAdminUsers(token: string | null): Promise<AdminUser[]> 
   return list.map(mapUser);
 }
 
-/** 사용자 수정 (role/affiliation/displayName) — PATCH /admin/users/{id} */
+/** 사용자 수정 (role/affiliationKey/displayName) — PATCH /admin/users/{id} */
 export async function updateUser(
   id: string,
-  patch: { role?: Role; affiliationName?: string | null; displayName?: string },
+  patch: { role?: Role; affiliationKey?: string | null; displayName?: string },
   token: string | null,
 ): Promise<AdminUser> {
   if (USE_MOCK) return mockUpdateUser(id, patch);
@@ -98,6 +102,61 @@ export async function updateUser(
       token,
     }),
   );
+}
+
+/** 사용자 생성 — POST /admin/users */
+export async function createUser(
+  input: {
+    username: string;
+    password: string;
+    displayName: string;
+    role: Role;
+    affiliationKey?: string | null;
+    active?: boolean;
+  },
+  token: string | null,
+): Promise<AdminUser> {
+  if (USE_MOCK) return mockCreateUser(input);
+  return mapUser(
+    await apiFetch<AdminUserResponse>("/admin/users", { method: "POST", json: input, token }),
+  );
+}
+
+/** 비밀번호 재설정 — PATCH /admin/users/{id}/password */
+export async function resetUserPassword(
+  id: string,
+  newPassword: string,
+  token: string | null,
+): Promise<void> {
+  if (USE_MOCK) return mockResetPassword(id);
+  await apiFetch<void>(`/admin/users/${id}/password`, {
+    method: "PATCH",
+    json: { newPassword },
+    token,
+    noContent: true,
+  });
+}
+
+/** 활성/비활성 전환 — PATCH /admin/users/{id}/status */
+export async function setUserActive(
+  id: string,
+  active: boolean,
+  token: string | null,
+): Promise<AdminUser> {
+  if (USE_MOCK) return mockSetUserActive(id, active);
+  return mapUser(
+    await apiFetch<AdminUserResponse>(`/admin/users/${id}/status`, {
+      method: "PATCH",
+      json: { active },
+      token,
+    }),
+  );
+}
+
+/** 사용자 삭제 (게시물 없는 계정만) — DELETE /admin/users/{id} */
+export async function deleteUser(id: string, token: string | null): Promise<void> {
+  if (USE_MOCK) return mockDeleteUser(id);
+  await apiFetch<void>(`/admin/users/${id}`, { method: "DELETE", token, noContent: true });
 }
 
 /** affiliation 기준 데이터 (사용자 수정 시 소속 후보) — GET /admin/affiliations */

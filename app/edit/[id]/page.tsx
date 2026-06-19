@@ -4,10 +4,11 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SmartImg } from "@/components/SmartImg";
 import { getImage, updateImage } from "@/lib/api/images";
+import { getTags } from "@/lib/api/tags";
 import { imageSrc, ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
 import { canManagePhoto, affiliationOf } from "@/lib/types";
-import type { Photo } from "@/lib/types";
+import type { Photo, Tag } from "@/lib/types";
 import { DAYS, DAY_LABEL, currentDay, type Day } from "@/lib/event";
 import { hasProfanity } from "@/lib/moderation";
 import { IconCamera, IconWarning } from "@/components/icons";
@@ -35,6 +36,8 @@ export default function EditPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [day, setDay] = useState<Day | null>(null);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [tagKey, setTagKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,9 +55,13 @@ export default function EditPage() {
         setPhoto(p);
         setComment(p.comment);
         setDay(p.day ?? currentDay());
+        setTagKey(p.tagKey ?? null);
         setPreview(imageSrc(p.imageUrl));
       })
       .finally(() => alive && setLoading(false));
+    getTags()
+      .then((ts) => alive && setTags(ts))
+      .catch(() => {});
     return () => {
       alive = false;
     };
@@ -88,6 +95,7 @@ export default function EditPage() {
     try {
       await updateImage(photo.id, comment.trim(), day, session?.token ?? null, {
         file: file ?? undefined,
+        tagKey,
         previewUrl: file ? (preview ?? undefined) : undefined,
       });
       router.push("/gallery");
@@ -194,6 +202,47 @@ export default function EditPage() {
           );
         })}
       </div>
+
+      {/* 프로그램 태그 */}
+      {tags.length > 0 && (
+        <>
+          <div className="mb-1.5">
+            <label className="text-[12.5px] font-semibold text-[var(--muted)]">
+              프로그램 태그 <span className="font-normal opacity-70">(선택)</span>
+            </label>
+          </div>
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setTagKey(null)}
+              className={`tappable rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition ${
+                tagKey === null
+                  ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                  : "border-[var(--line)] bg-[var(--bg-soft)] text-[var(--muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              없음
+            </button>
+            {tags.map((t) => {
+              const on = tagKey === t.tagKey;
+              return (
+                <button
+                  key={t.tagKey}
+                  type="button"
+                  onClick={() => setTagKey(t.tagKey)}
+                  className={`tappable rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition ${
+                    on
+                      ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                      : "border-[var(--line)] bg-[var(--bg-soft)] text-[var(--muted)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  {t.tagName}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* 코멘트 */}
       <div className="mb-1.5 flex items-baseline justify-between">

@@ -106,7 +106,7 @@ export default function GalleryPage() {
                 >
                   <span className="block rounded-full bg-[var(--bg)] p-[2px]">
                     <SmartImg
-                      src={imageSrc(a.cover.imageUrl)}
+                      src={imageSrc(a.cover.thumbnailUrl ?? a.cover.imageUrl)}
                       className={`block h-[52px] w-[52px] rounded-full object-cover transition ${
                         on ? "" : "opacity-85"
                       }`}
@@ -213,7 +213,7 @@ export default function GalleryPage() {
               className="tappable animate-fade-up group relative aspect-[4/5] overflow-hidden rounded-xl bg-[var(--bg-soft)]"
             >
               <SmartImg
-                src={imageSrc(p.imageUrl)}
+                src={imageSrc(p.thumbnailUrl ?? p.imageUrl)}
                 className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
               />
               <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/55 to-transparent" />
