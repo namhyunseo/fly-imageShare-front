@@ -40,8 +40,8 @@ export default function UploadPage() {
   }, []);
 
   const allowed = role !== null && canPost(role);
-  // 오이코스는 서버가 로그인 세션으로 결정. 화면엔 읽기 전용으로만 표시.
-  const oikosName = session?.oikosName ?? null;
+  // 소속은 서버가 로그인 세션으로 결정. 화면엔 읽기 전용으로만 표시.
+  const affiliationName = session?.affiliationName ?? null;
 
   function select(f: File) {
     if (!isImage(f)) {
@@ -92,7 +92,7 @@ export default function UploadPage() {
       // 오이코스는 보내지 않음 — 서버가 세션으로 결정. dev 인자는 mock 표시 전용.
       // day는 사용자가 고른 값을 전달하고, 검증·저장은 백엔드가 맡는다.
       await uploadImage(comment.trim(), file, day, session?.token ?? null, {
-        oikosName: oikosName ?? "",
+        affiliationName: affiliationName ?? "",
         previewUrl: preview ?? "",
       });
       router.push("/gallery");
@@ -117,9 +117,9 @@ export default function UploadPage() {
             한 장의 순간을 남겨요
           </p>
         </div>
-        {allowed && oikosName && (
+        {allowed && affiliationName && (
           <span className="mt-1 shrink-0 rounded-full bg-[rgba(47,111,237,0.1)] px-3 py-1 text-[12.5px] font-bold text-[var(--accent)]">
-            오이코스 {oikosName}
+            내 소속 {affiliationName}
           </span>
         )}
       </div>

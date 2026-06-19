@@ -9,7 +9,7 @@
 // 새로 업로드된 사진(SSE)은 셔플을 기다리지 않고 즉시 무대에 합류한다.
 import { useEffect, useRef } from "react";
 import { imageSrc } from "@/lib/api/client";
-import type { Photo } from "@/lib/types";
+import { affiliationOf, type Photo } from "@/lib/types";
 
 const FADE_MS = 800; // .float 의 opacity 트랜지션과 일치
 
@@ -39,7 +39,7 @@ function fill(el: HTMLDivElement, p: Photo) {
   el.innerHTML =
     `<img class="ph" src="${imageSrc(p.imageUrl)}" alt="">` +
     `<div class="cap"><span class="t">${p.comment}</span>` +
-    `<span class="o">${p.oikosName}</span></div>`;
+    `<span class="o">${affiliationOf(p)}</span></div>`;
 }
 
 export function FloatingStage({

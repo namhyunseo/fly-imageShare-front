@@ -331,7 +331,7 @@ export default function AdminPage() {
                   <div className="flex items-center justify-between">
                     <span className="font-bold">{a.affiliationName}</span>
                     <span className="rounded-full bg-[var(--bg)] px-2 py-0.5 text-[11px] font-bold text-[var(--muted)]">
-                      {AFFILIATION_TYPE_LABEL[a.type]}
+                      {AFFILIATION_TYPE_LABEL[a.affiliationType]}
                     </span>
                   </div>
                   <p className="mt-1.5 text-[12px] text-[var(--muted)]">

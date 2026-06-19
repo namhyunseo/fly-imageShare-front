@@ -3,8 +3,9 @@
 //
 // 운영 경로(실서버)와 섞이지 않도록 mock 구현을 이 파일에 격리한다.
 // 각 API 모듈은 USE_MOCK 일 때만 여기 함수를 호출한다.
+// 소속은 백엔드와 동일하게 affiliation 모델(key/name/type)로 다룬다.
 // ============================================================
-import type { Affiliation, AdminUser, Photo, Session } from "../types";
+import type { Affiliation, AdminUser, AffiliationType, Photo, Session } from "../types";
 import type { Day } from "../event";
 
 // unsplash 단체 사진(수련회 분위기). 다양한 비율로 빔 배치 확인용.
@@ -30,14 +31,25 @@ const DAY_CYCLE: Day[] = ["PRE", "DAY1", "DAY1", "DAY2", "DAY2", "DAY3"];
 
 /** 소속 기준 데이터 (관리자 affiliation 조회 / 사용자 소속 후보) */
 export const AFFILIATIONS: Affiliation[] = [
-  { affiliationKey: "1-1", affiliationName: "1-1", type: "OIKOS" },
-  { affiliationKey: "1-2", affiliationName: "1-2", type: "OIKOS" },
-  { affiliationKey: "1-3", affiliationName: "1-3", type: "OIKOS" },
-  { affiliationKey: "1-4", affiliationName: "1-4", type: "OIKOS" },
-  { affiliationKey: "1-5", affiliationName: "1-5", type: "OIKOS" },
-  { affiliationKey: "president-team", affiliationName: "회장단", type: "PRESIDENT" },
-  { affiliationKey: "worship-team", affiliationName: "예배팀", type: "WORSHIP" },
+  { affiliationKey: "1-1", affiliationName: "1-1", affiliationType: "OIKOS" },
+  { affiliationKey: "1-2", affiliationName: "1-2", affiliationType: "OIKOS" },
+  { affiliationKey: "1-3", affiliationName: "1-3", affiliationType: "OIKOS" },
+  { affiliationKey: "1-4", affiliationName: "1-4", affiliationType: "OIKOS" },
+  { affiliationKey: "1-5", affiliationName: "1-5", affiliationType: "OIKOS" },
+  { affiliationKey: "president-team", affiliationName: "회장단", affiliationType: "PRESIDENT" },
+  { affiliationKey: "worship-team", affiliationName: "예배팀", affiliationType: "WORSHIP" },
 ];
+
+/** 소속명 → affiliation 기준 데이터 (mock 보조) */
+function affiliationByName(name: string): Affiliation {
+  return (
+    AFFILIATIONS.find((a) => a.affiliationName === name) ?? {
+      affiliationKey: name,
+      affiliationName: name,
+      affiliationType: "OIKOS",
+    }
+  );
+}
 
 const pUrl = (id: string, w: number, h: number) =>
   `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&h=${h}&q=80`;
@@ -47,15 +59,16 @@ const BASE = Date.parse("2026-06-09T17:00:00+09:00");
 
 const photos: Photo[] = Array.from({ length: 20 }, (_, i) => {
   const [w, h] = SIZES[i % SIZES.length];
-  const oikos = `1-${(i % 5) + 1}`;
+  const name = `1-${(i % 5) + 1}`;
   return {
     id: `seed-${i}`,
     comment: COMMENTS[i % COMMENTS.length],
-    oikosName: oikos,
-    affiliationName: oikos,
+    affiliationKey: name,
+    affiliationName: name,
+    affiliationType: "OIKOS" as AffiliationType,
     day: DAY_CYCLE[i % DAY_CYCLE.length],
     imageUrl: pUrl(GROUP_PHOTOS[i % GROUP_PHOTOS.length], w, h),
-    uploadedBy: oikos,
+    uploadedBy: name,
     createdAt: new Date(BASE + i * 7 * 60_000).toISOString(),
     width: w,
     height: h,
@@ -70,11 +83,13 @@ const EXTRA: Photo[] = [
   { name: "예배팀", by: "worship-1", day: "DAY2" as Day, comment: "찬양 연습 마치고 한 컷", photo: 9 },
 ].map((e, i) => {
   const [w, h] = SIZES[(i + 3) % SIZES.length];
+  const aff = affiliationByName(e.name);
   return {
     id: `extra-${i}`,
     comment: e.comment,
-    oikosName: e.name,
-    affiliationName: e.name,
+    affiliationKey: aff.affiliationKey,
+    affiliationName: aff.affiliationName,
+    affiliationType: aff.affiliationType,
     day: e.day,
     imageUrl: pUrl(GROUP_PHOTOS[e.photo], w, h),
     uploadedBy: e.by,
@@ -89,12 +104,27 @@ photos.push(...EXTRA);
 /** mock 로그인: 아이디에 admin 포함이면 관리자, 그 외 리더 */
 export function mockLogin(username: string): Session {
   const isAdmin = username.trim().toLowerCase().includes("admin");
+  if (isAdmin) {
+    return {
+      token: "mock-token",
+      username,
+      displayName: username,
+      role: "ADMIN",
+      affiliationKey: null,
+      affiliationName: null,
+      affiliationType: null,
+    };
+  }
+  const name = /^\d+-\d+$/.test(username.trim()) ? username.trim() : "1-1";
+  const aff = affiliationByName(name);
   return {
     token: "mock-token",
     username,
     displayName: username,
-    role: isAdmin ? "ADMIN" : "LEADER",
-    oikosName: isAdmin ? null : /^\d+-\d+$/.test(username.trim()) ? username.trim() : "1-1",
+    role: "LEADER",
+    affiliationKey: aff.affiliationKey,
+    affiliationName: aff.affiliationName,
+    affiliationType: aff.affiliationType,
   };
 }
 
@@ -105,22 +135,24 @@ export async function mockGetImages(): Promise<Photo[]> {
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
-/** 업로드한 사진의 오이코스는 로그인 세션 값 — mock에선 인자로 받아 표시 */
+/** 업로드한 사진의 소속은 로그인 세션 값 — mock에선 인자(affiliationName)로 받아 표시 */
 export async function mockUpload(
   comment: string,
-  oikosName: string,
+  affiliationName: string,
   previewUrl: string,
   day: Day,
 ): Promise<Photo> {
   const now = Date.now();
+  const aff = affiliationByName(affiliationName);
   const photo: Photo = {
     id: `up-${now}`,
     comment,
-    oikosName,
-    affiliationName: oikosName,
+    affiliationKey: aff.affiliationKey,
+    affiliationName: aff.affiliationName,
+    affiliationType: aff.affiliationType,
     day,
     imageUrl: previewUrl,
-    uploadedBy: oikosName,
+    uploadedBy: affiliationName,
     createdAt: new Date(now).toISOString(),
   };
   photos.unshift(photo);
@@ -151,15 +183,35 @@ export async function mockDelete(id: string): Promise<void> {
 
 // ── 관리자(admin) mock ──────────────────────────────────────
 
+function mkUser(
+  id: string,
+  username: string,
+  displayName: string,
+  role: AdminUser["role"],
+  affName: string | null,
+): AdminUser {
+  const aff = affName ? affiliationByName(affName) : null;
+  return {
+    id,
+    username,
+    displayName,
+    role,
+    affiliationKey: aff?.affiliationKey ?? null,
+    affiliationName: aff?.affiliationName ?? null,
+    affiliationType: aff?.affiliationType ?? null,
+    active: true,
+  };
+}
+
 const users: AdminUser[] = [
-  { id: "u-1", username: "1-1", displayName: "1-1", role: "LEADER", affiliationName: "1-1" },
-  { id: "u-2", username: "1-2", displayName: "1-2", role: "LEADER", affiliationName: "1-2" },
-  { id: "u-3", username: "1-3", displayName: "1-3", role: "LEADER", affiliationName: "1-3" },
-  { id: "u-4", username: "1-4", displayName: "1-4", role: "LEADER", affiliationName: "1-4" },
-  { id: "u-5", username: "1-5", displayName: "1-5", role: "LEADER", affiliationName: "1-5" },
-  { id: "u-p", username: "president-1", displayName: "회장단 1", role: "LEADER", affiliationName: "회장단" },
-  { id: "u-w", username: "worship-1", displayName: "예배팀 1", role: "LEADER", affiliationName: "예배팀" },
-  { id: "u-admin", username: "admin", displayName: "Administrator", role: "ADMIN", affiliationName: null },
+  mkUser("u-1", "1-1", "1-1", "LEADER", "1-1"),
+  mkUser("u-2", "1-2", "1-2", "LEADER", "1-2"),
+  mkUser("u-3", "1-3", "1-3", "LEADER", "1-3"),
+  mkUser("u-4", "1-4", "1-4", "LEADER", "1-4"),
+  mkUser("u-5", "1-5", "1-5", "LEADER", "1-5"),
+  mkUser("u-p", "president-1", "회장단 1", "LEADER", "회장단"),
+  mkUser("u-w", "worship-1", "예배팀 1", "LEADER", "예배팀"),
+  mkUser("u-admin", "admin", "Administrator", "ADMIN", null),
 ];
 
 /** 관리자 게시물 목록 — 숨김 포함, 최신순 */
@@ -181,11 +233,24 @@ export async function mockAdminUsers(): Promise<AdminUser[]> {
 
 export async function mockUpdateUser(
   id: string,
-  patch: Partial<Pick<AdminUser, "role" | "affiliationName" | "displayName">>,
+  patch: { role?: AdminUser["role"]; affiliationName?: string | null; displayName?: string },
 ): Promise<AdminUser> {
   const u = users.find((x) => x.id === id);
   if (!u) throw new Error("사용자를 찾을 수 없어요.");
-  Object.assign(u, patch);
+  if (patch.role !== undefined) u.role = patch.role;
+  if (patch.displayName !== undefined) u.displayName = patch.displayName;
+  if (patch.affiliationName !== undefined) {
+    if (patch.affiliationName === null) {
+      u.affiliationKey = null;
+      u.affiliationName = null;
+      u.affiliationType = null;
+    } else {
+      const aff = affiliationByName(patch.affiliationName);
+      u.affiliationKey = aff.affiliationKey;
+      u.affiliationName = aff.affiliationName;
+      u.affiliationType = aff.affiliationType;
+    }
+  }
   return u;
 }
 
