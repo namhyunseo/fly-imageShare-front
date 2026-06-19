@@ -1,12 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SmartImg } from "@/components/SmartImg";
 import { uploadImage } from "@/lib/api/images";
+import { getTags } from "@/lib/api/tags";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
-import { canPost } from "@/lib/types";
+import { canPost, type Tag } from "@/lib/types";
+import { currentDay, DAYS, DAY_LABEL, type Day } from "@/lib/event";
 import { hasProfanity } from "@/lib/moderation";
 import { IconCamera, IconLock, IconWarning, IconClose } from "@/components/icons";
 
@@ -26,13 +28,24 @@ export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [comment, setComment] = useState("");
+  // 행사 day는 필수 선택. 진입 시 현재 day를 기본값으로 미리 선택해 둔다.
+  // (Date.now() 의존 → SSR/CSR 불일치 방지 위해 effect에서 설정)
+  const [day, setDay] = useState<Day | null>(null);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [tagKey, setTagKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDay(currentDay());
+    getTags().then(setTags).catch(() => {});
+  }, []);
+
   const allowed = role !== null && canPost(role);
-  // 오이코스는 서버가 로그인 세션으로 결정. 화면엔 읽기 전용으로만 표시.
-  const oikosName = session?.oikosName ?? null;
+  // 소속은 서버가 로그인 세션으로 결정. 화면엔 읽기 전용으로만 표시.
+  const affiliationName = session?.affiliationName ?? null;
 
   function select(f: File) {
     if (!isImage(f)) {
@@ -70,7 +83,7 @@ export default function UploadPage() {
   }
 
   async function publish() {
-    if (!file || busy) return;
+    if (!file || !day || busy) return;
     setError(null);
 
     if (hasProfanity(comment)) {
@@ -81,9 +94,10 @@ export default function UploadPage() {
     setBusy(true);
     try {
       // 오이코스는 보내지 않음 — 서버가 세션으로 결정. dev 인자는 mock 표시 전용.
-      await uploadImage(comment.trim(), file, session?.token ?? null, {
-        oikosName: oikosName ?? "",
-        previewUrl: preview ?? "",
+      // day는 사용자가 고른 값을 전달하고, 검증·저장은 백엔드가 맡는다.
+      await uploadImage(comment.trim(), file, day, session?.token ?? null, {
+        tagKey,
+        dev: { affiliationName: affiliationName ?? "", previewUrl: preview ?? "" },
       });
       router.push("/gallery");
     } catch (e) {
@@ -107,9 +121,9 @@ export default function UploadPage() {
             한 장의 순간을 남겨요
           </p>
         </div>
-        {allowed && oikosName && (
+        {allowed && affiliationName && (
           <span className="mt-1 shrink-0 rounded-full bg-[rgba(47,111,237,0.1)] px-3 py-1 text-[12.5px] font-bold text-[var(--accent)]">
-            오이코스 {oikosName}
+            내 소속 {affiliationName}
           </span>
         )}
       </div>
@@ -193,6 +207,80 @@ export default function UploadPage() {
         </button>
       )}
 
+      {/* 행사 day — 필수. 진입 시 현재 day가 기본 선택돼 있고, 사용자는 확인만 하면 됨. */}
+      <div className="mb-1.5 flex items-baseline justify-between">
+        <label className="text-[12.5px] font-semibold text-[var(--muted)]">
+          행사 day{" "}
+          <span className="font-normal text-[var(--accent)]">(필수)</span>
+        </label>
+      </div>
+      <div className="mb-1.5 grid grid-cols-4 gap-1.5">
+        {DAYS.map((d) => {
+          const on = day === d;
+          return (
+            <button
+              key={d}
+              type="button"
+              disabled={!allowed}
+              onClick={() => setDay(d)}
+              className={`tappable rounded-xl border py-2.5 text-[13px] font-bold transition disabled:opacity-50 ${
+                on
+                  ? "border-[var(--accent)] bg-[var(--accent)] text-white shadow-[0_6px_16px_rgba(47,111,237,0.22)]"
+                  : "border-[var(--line)] bg-[var(--bg-soft)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+              }`}
+            >
+              {DAY_LABEL[d]}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mb-4 break-keep text-[11.5px] text-[var(--muted)]">
+        현재 일정 기준 day가 미리 선택돼 있어요. 다른 날 사진이면 직접 바꿔주세요.
+      </p>
+
+      {/* 프로그램 태그 — 선택. 활성 태그가 있을 때만 노출 */}
+      {tags.length > 0 && (
+        <>
+          <div className="mb-1.5">
+            <label className="text-[12.5px] font-semibold text-[var(--muted)]">
+              프로그램 태그 <span className="font-normal opacity-70">(선택)</span>
+            </label>
+          </div>
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              disabled={!allowed}
+              onClick={() => setTagKey(null)}
+              className={`tappable rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition disabled:opacity-50 ${
+                tagKey === null
+                  ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                  : "border-[var(--line)] bg-[var(--bg-soft)] text-[var(--muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              없음
+            </button>
+            {tags.map((t) => {
+              const on = tagKey === t.tagKey;
+              return (
+                <button
+                  key={t.tagKey}
+                  type="button"
+                  disabled={!allowed}
+                  onClick={() => setTagKey(t.tagKey)}
+                  className={`tappable rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition disabled:opacity-50 ${
+                    on
+                      ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                      : "border-[var(--line)] bg-[var(--bg-soft)] text-[var(--muted)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  {t.tagName}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       <div className="mb-1.5 flex items-baseline justify-between">
         <label htmlFor="comment" className="text-[12.5px] font-semibold text-[var(--muted)]">
           한 줄 코멘트{" "}
@@ -244,7 +332,7 @@ export default function UploadPage() {
 
       <button
         onClick={publish}
-        disabled={!allowed || !preview || busy}
+        disabled={!allowed || !preview || !day || busy}
         className="tappable flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[#5b9dff] py-3 text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(47,111,237,0.25)] disabled:opacity-40 disabled:shadow-none"
       >
         {busy && (
