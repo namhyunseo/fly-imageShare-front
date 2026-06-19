@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { SmartImg } from "./SmartImg";
 import { imageSrc } from "@/lib/api/client";
 import { relTime } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
-import { IconClose, IconTrash } from "./icons";
+import { IconClose, IconTrash, IconEdit } from "./icons";
+import { affiliationOf, canManagePhoto } from "@/lib/types";
+import { DAY_LABEL } from "@/lib/event";
 import type { Photo } from "@/lib/types";
 
 // 인스타 스토리식 뷰어 — 풀스크린, 가로 스와이프/탭으로 이전·다음.
@@ -33,10 +36,11 @@ export function PhotoModal({
   onEnd?: () => void;
   /** 첫 사진에서 뒤로 넘기면 */
   onStart?: () => void;
-  /** 삭제 실행 (모더레이션). 관리자에게만 노출. */
+  /** 삭제 실행. 업로더 본인·관리자에게만 노출. */
   onDelete?: (id: string) => void;
 }) {
-  const { role } = useAuth();
+  const { role, session } = useAuth();
+  const router = useRouter();
   const drag = useRef<{ startX: number; dx: number; moved: boolean } | null>(
     null,
   );
@@ -212,8 +216,15 @@ export function PhotoModal({
 
       {/* 하단: 오이코스 · 코멘트 · 시간 (현재 사진) */}
       <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-4 pb-[calc(env(safe-area-inset-bottom)+18px)] pt-12">
-        <span className="mb-2 inline-block rounded-full bg-[var(--accent)] px-2.5 py-[3px] text-[11.5px] font-bold text-white">
-          {photo.oikosName}
+        <span className="mb-2 inline-flex items-center gap-1.5">
+          <span className="rounded-full bg-[var(--accent)] px-2.5 py-[3px] text-[11.5px] font-bold text-white">
+            {affiliationOf(photo)}
+          </span>
+          {photo.day && (
+            <span className="rounded-full bg-white/20 px-2.5 py-[3px] text-[11.5px] font-bold text-white backdrop-blur-sm">
+              {DAY_LABEL[photo.day]}
+            </span>
+          )}
         </span>
         <p className="break-keep text-[16px] font-medium leading-relaxed text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)]">
           {photo.comment}
@@ -222,18 +233,33 @@ export function PhotoModal({
           {relTime(photo.createdAt, nowMs)}
         </p>
 
-        {role === "ADMIN" && onDelete && (
-          <button
-            onClick={() => {
-              if (confirm("이 사진을 삭제할까요? 되돌릴 수 없어요.")) {
-                onDelete(photo.id);
-              }
-            }}
-            className="tappable mt-3 flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3.5 py-2 text-[12.5px] font-bold text-white backdrop-blur-sm hover:bg-white/20"
-          >
-            <IconTrash className="h-[16px] w-[16px]" />
-            삭제 (관리자)
-          </button>
+        {/* 관리 액션 — 업로더 본인·관리자에게만 노출 */}
+        {canManagePhoto(photo, session, role) && (
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              onClick={() => {
+                onClose();
+                router.push(`/edit/${photo.id}`);
+              }}
+              className="tappable flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3.5 py-2 text-[12.5px] font-bold text-white backdrop-blur-sm hover:bg-white/20"
+            >
+              <IconEdit className="h-[16px] w-[16px]" />
+              수정하기
+            </button>
+            {onDelete && (
+              <button
+                onClick={() => {
+                  if (confirm("이 사진을 삭제할까요? 되돌릴 수 없어요.")) {
+                    onDelete(photo.id);
+                  }
+                }}
+                className="tappable flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3.5 py-2 text-[12.5px] font-bold text-white backdrop-blur-sm hover:bg-white/20"
+              >
+                <IconTrash className="h-[16px] w-[16px]" />
+                삭제하기
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

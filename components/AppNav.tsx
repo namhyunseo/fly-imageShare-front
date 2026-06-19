@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { ROLE_LABEL, canPost } from "@/lib/types";
-import { IconGallery, IconUpload, IconBeam, IconUser } from "@/components/icons";
+import { IconGallery, IconUpload, IconBeam, IconUser, IconEye } from "@/components/icons";
 import { LoginSheet } from "@/components/LoginSheet";
 
 // 빔(/display)은 현장 프로젝터 송출용 — 관리자에게만 탭 노출.
@@ -18,9 +18,11 @@ const TABS = [
   { href: "/gallery", label: "갤러리", Icon: IconGallery },
   { href: "/upload", label: "올리기", Icon: IconUpload, postOnly: true },
   { href: "/display", label: "빔", Icon: IconBeam, adminOnly: true },
+  { href: "/admin", label: "관리", Icon: IconEye, adminOnly: true },
 ] as const;
 
-const HIDDEN_ON = ["/display", "/login", "/"];
+// 빔·관리자 콘솔은 풀스크린/데스크톱 운영 화면이라 하단 탭바를 숨긴다.
+const HIDDEN_ON = ["/display", "/admin", "/login", "/"];
 
 export function AppNav() {
   const pathname = usePathname();

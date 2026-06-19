@@ -6,6 +6,8 @@
 // 로그인 사용자 세션으로 결정한다.
 // ============================================================
 
+import type { Day } from "./event";
+
 /** 권한 3단계 (백엔드 UserRole enum, 대문자) */
 export type Role = "ADMIN" | "LEADER" | "VIEWER";
 
@@ -20,6 +22,37 @@ export function canPost(role: Role): boolean {
   return role === "ADMIN" || role === "LEADER";
 }
 
+/**
+ * 소속 종류. 숫자 오이코스(OIKOS) 외에 회장단·예배팀 같은 확장형 소속도
+ * 같은 레벨에서 다룬다.
+ */
+export type AffiliationType = "OIKOS" | "PRESIDENT" | "WORSHIP";
+
+export const AFFILIATION_TYPE_LABEL: Record<AffiliationType, string> = {
+  OIKOS: "오이코스",
+  PRESIDENT: "회장단",
+  WORSHIP: "예배팀",
+};
+
+/** 소속 기준 데이터 (관리자 affiliation 조회 / 사용자 소속 후보) */
+export interface Affiliation {
+  /** 내부 식별 키 (예: "1-1", "president-team") */
+  affiliationKey: string;
+  /** 표시명 (예: "1-1", "회장단") */
+  affiliationName: string;
+  type: AffiliationType;
+}
+
+/** 운영 계정 — 관리자 사용자 관리(GET /admin/users) 정합 */
+export interface AdminUser {
+  id: string;
+  username: string;
+  displayName: string;
+  role: Role;
+  /** 소속명. 관리자는 없을 수 있음(null). */
+  affiliationName: string | null;
+}
+
 /** 사진 — 백엔드 ImageResponse 정합 */
 export interface Photo {
   /** 백엔드 Long → string */
@@ -27,15 +60,49 @@ export interface Photo {
   comment: string;
   /** 오이코스 식별자 "1-1" ~ "1-5" (업로더 사용자 기준) */
   oikosName: string;
+  /**
+   * 확장형 소속명. 회장단·예배팀 등은 oikosName과 다를 수 있다.
+   * 없으면 oikosName이 곧 소속명. (백엔드 연동 전 mock에서 채움)
+   */
+  affiliationName?: string;
+  /** 행사 진행일. 업로드 시 필수 선택값. (백엔드 연동 전 mock에서 채움) */
+  day?: Day;
   /** "/images/{id}/content" 상대경로 (또는 S3 절대 URL) */
   imageUrl: string;
   /** 업로더 표시명 */
   uploadedBy?: string;
+  /** 노출 상태. true면 관리자가 숨긴 게시물(복구 가능). 기본 노출. */
+  hidden?: boolean;
   /** ISO 8601 */
   createdAt: string;
   /** 원본 픽셀 크기 (빔에서 원본 비율 표시용) */
   width?: number;
   height?: number;
+}
+
+/** 사진의 소속명 — 확장형 우선, 없으면 오이코스명 */
+export function affiliationOf(p: Photo): string {
+  return p.affiliationName ?? p.oikosName;
+}
+
+/**
+ * 이 사진을 수정·삭제할 수 있는지 — 관리자이거나 업로더 본인일 때.
+ *
+ * 본인 판별은 백엔드가 주는 업로더 식별자(uploadedBy)와 세션을 맞춰야
+ * 정확하다. 계약 확정 전까지는 표시명/오이코스명으로 근사한다.
+ */
+export function canManagePhoto(
+  photo: Photo,
+  session: Session | null,
+  role: Role | null,
+): boolean {
+  if (role === "ADMIN") return true;
+  if (!session) return false;
+  return (
+    photo.uploadedBy === session.displayName ||
+    photo.uploadedBy === session.username ||
+    (session.oikosName !== null && photo.oikosName === session.oikosName)
+  );
 }
 
 /** 로그인 세션 — 백엔드 LoginResponse 정합 */
