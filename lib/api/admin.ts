@@ -6,7 +6,7 @@
 // 우선 사용하고, 사용자 관리는 role·affiliation·displayName 조정에 집중.
 // ============================================================
 import type { AdminUser, Affiliation, AffiliationType, Photo, Role } from "../types";
-import { USE_MOCK, apiFetch } from "./client";
+import { USE_MOCK, apiFetch, fetchAll } from "./client";
 import { mapImage, type ImageResponse } from "./images";
 import {
   mockAdminImages,
@@ -59,10 +59,13 @@ function mapAffiliation(r: AffiliationResponse): Affiliation {
   };
 }
 
-/** 게시물 목록 (숨김 포함, 최신순) — GET /admin/images */
+/**
+ * 게시물 목록 (숨김 포함, 최신순) — GET /admin/images.
+ * 백엔드가 커서 페이지(기본 30건, 기본 visibility=ALL) 응답으로 전환됨 → 전 페이지를 모아 반환.
+ */
 export async function getAdminImages(token: string | null): Promise<Photo[]> {
   if (USE_MOCK) return mockAdminImages();
-  const list = await apiFetch<ImageResponse[]>("/admin/images", { token });
+  const list = await fetchAll<ImageResponse>("/admin/images", { token });
   return list.map(mapImage);
 }
 

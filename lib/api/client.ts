@@ -104,3 +104,38 @@ export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promis
   if (opts.noContent || res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
+
+/** 백엔드 커서 페이지 응답 — GET /images, /admin/images */
+export interface CursorPage<T> {
+  items: T[];
+  nextCursor: string | null;
+  hasNext: boolean;
+}
+
+/**
+ * 커서 페이지를 끝까지 모아 전량 반환한다.
+ * - 신 백엔드: { items, nextCursor, hasNext } 를 hasNext 동안 반복 수집.
+ * - 구 백엔드: 배열을 그대로 반환하던 시절과도 호환(Array면 그대로 사용).
+ * 페이징 UI 도입 전까지 기존 "전체 로드" UX를 유지하기 위한 장치다.
+ */
+export async function fetchAll<T>(
+  path: string,
+  opts: FetchOptions = {},
+  pageSize = 100,
+): Promise<T[]> {
+  const sep = path.includes("?") ? "&" : "?";
+  const out: T[] = [];
+  let cursor: string | null = null;
+  for (;;) {
+    const q: string = `${path}${sep}limit=${pageSize}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+    const res: T[] | CursorPage<T> = await apiFetch<T[] | CursorPage<T>>(q, opts);
+    if (Array.isArray(res)) {
+      out.push(...res); // 구 백엔드(배열 응답)
+      break;
+    }
+    out.push(...res.items);
+    if (!res.hasNext || !res.nextCursor) break;
+    cursor = res.nextCursor;
+  }
+  return out;
+}
