@@ -8,6 +8,7 @@ import { relTime } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
 import { IconClose, IconTrash, IconEdit } from "./icons";
 import { affiliationOf, canManagePhoto } from "@/lib/types";
+import { isVideoPhoto } from "@/lib/media";
 import { DAY_LABEL } from "@/lib/event";
 import type { Photo } from "@/lib/types";
 
@@ -154,21 +155,43 @@ export function PhotoModal({
           willChange: "transform",
         }}
       >
-        {photos.map((p) => (
+        {photos.map((p, i) => (
           <div
             key={p.id}
             className="relative flex h-full w-full shrink-0 items-center justify-center overflow-hidden"
           >
-            {/* 같은 사진을 크게 블러 처리한 앰비언트 배경 (검은 여백 대체) */}
+            {/* 앰비언트 배경 — 동영상은 정지 썸네일을 블러로 (영상은 img로 못 띄움) */}
             <SmartImg
-              src={imageSrc(p.imageUrl)}
+              src={imageSrc(
+                isVideoPhoto(p) ? (p.thumbnailUrl ?? p.imageUrl) : p.imageUrl,
+              )}
               className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-2xl"
             />
             <span className="pointer-events-none absolute inset-0 bg-black/35" />
-            <SmartImg
-              src={imageSrc(p.imageUrl)}
-              className="relative max-h-full max-w-full object-contain"
-            />
+            {isVideoPhoto(p) ? (
+              i === cur ? (
+                // 현재 슬라이드 동영상만 재생. 자동재생 정책상 muted 시작 + controls로 소리.
+                <video
+                  src={imageSrc(p.imageUrl)}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  controls
+                  className="relative z-10 max-h-full max-w-full object-contain"
+                />
+              ) : (
+                <SmartImg
+                  src={imageSrc(p.thumbnailUrl ?? p.imageUrl)}
+                  className="relative max-h-full max-w-full object-contain"
+                />
+              )
+            ) : (
+              <SmartImg
+                src={imageSrc(p.imageUrl)}
+                className="relative max-h-full max-w-full object-contain"
+              />
+            )}
           </div>
         ))}
       </div>

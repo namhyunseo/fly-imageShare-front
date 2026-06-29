@@ -6,6 +6,7 @@ import { FloatingStage } from "@/components/FloatingStage";
 import { DisplayControls } from "@/components/DisplayControls";
 import { getImages } from "@/lib/api/images";
 import { subscribeFeed } from "@/lib/api/display";
+import { isVideoPhoto } from "@/lib/media";
 import type { Photo } from "@/lib/types";
 
 const CTRL_KEY = "oikos-display-ctrl";
@@ -17,10 +18,12 @@ export default function DisplayPage() {
   const [shuffleMs, setShuffleMs] = useState(6000);
 
   useEffect(() => {
-    getImages().then(setPhotos);
+    // 빔(프로젝터)은 사진만 — 동영상은 제외한다.
+    getImages().then((ps) => setPhotos(ps.filter((p) => !isVideoPhoto(p))));
 
-    // 실시간: 새 사진이 올라오면 무대에 합류
+    // 실시간: 새 사진이 올라오면 무대에 합류 (백엔드는 이미지 이벤트만 발행하지만 방어적으로 필터)
     return subscribeFeed((photo) => {
+      if (isVideoPhoto(photo)) return;
       setPhotos((prev) =>
         prev.some((p) => p.id === photo.id) ? prev : [photo, ...prev],
       );

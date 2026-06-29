@@ -24,6 +24,9 @@ export function canPost(role: Role): boolean {
   return role === "ADMIN" || role === "LEADER";
 }
 
+/** 게시물 미디어 종류 (백엔드 ImageMediaType enum 정합) */
+export type MediaType = "IMAGE" | "VIDEO";
+
 /**
  * 소속 종류. 숫자 오이코스(OIKOS) 외에 회장단·예배팀·교사 같은 확장형
  * 소속도 같은 레벨에서 다룬다. (백엔드 AffiliationType enum 정합)
@@ -75,6 +78,10 @@ export interface Photo {
   /** 백엔드 Long → string */
   id: string;
   comment: string;
+  /** 미디어 종류. 없으면 사진으로 간주. */
+  mediaType?: MediaType;
+  /** 동영상 길이(초). 사진이면 없음. */
+  durationSeconds?: number;
   /** 소속 식별 키 (업로더 사용자 기준) */
   affiliationKey?: string;
   /** 소속 표시명 (예: "1-3", "회장단") — 표시·필터의 기준 */

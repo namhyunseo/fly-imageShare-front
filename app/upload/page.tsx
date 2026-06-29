@@ -10,15 +10,11 @@ import { useAuth } from "@/lib/auth";
 import { canPost, type Tag } from "@/lib/types";
 import { currentDay, DAYS, DAY_LABEL, type Day } from "@/lib/event";
 import { hasProfanity } from "@/lib/moderation";
+import { isMediaFile, isVideoFile, MAX_VIDEO_BYTES } from "@/lib/media";
 import { IconCamera, IconLock, IconWarning, IconClose } from "@/components/icons";
 
 const MAX = 50;
 const EMOJIS = ["🙏", "🔥", "😂", "❤️", "🙌", "✨", "🍚", "📸", "☀️", "🎉"];
-
-/** 이미지 파일 여부 (HEIC는 type이 비어 있을 수 있어 확장자도 확인) */
-function isImage(f: File): boolean {
-  return f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name);
-}
 
 export default function UploadPage() {
   const { role, session } = useAuth();
@@ -48,8 +44,12 @@ export default function UploadPage() {
   const affiliationName = session?.affiliationName ?? null;
 
   function select(f: File) {
-    if (!isImage(f)) {
-      setError("이미지 파일만 올릴 수 있어요. (JPG · PNG · HEIC)");
+    if (!isMediaFile(f)) {
+      setError("사진 또는 MP4 동영상만 올릴 수 있어요.");
+      return;
+    }
+    if (isVideoFile(f) && f.size > MAX_VIDEO_BYTES) {
+      setError("동영상 용량이 너무 커요. 30MB 이하만 올릴 수 있어요.");
       return;
     }
     if (preview) URL.revokeObjectURL(preview);
@@ -146,7 +146,7 @@ export default function UploadPage() {
       <input
         ref={fileRef}
         type="file"
-        accept="image/png,image/jpeg,image/heic,image/heif,.heic,.heif"
+        accept="image/png,image/jpeg,image/heic,image/heif,.heic,.heif,video/mp4,.mp4"
         className="hidden"
         onChange={pick}
       />
@@ -154,15 +154,24 @@ export default function UploadPage() {
       {preview ? (
         <div className="mb-4">
           <div className="relative overflow-hidden rounded-[var(--radius)] border border-[var(--line)] bg-[var(--bg-soft)]">
-            <SmartImg
-              src={preview}
-              alt="미리보기"
-              className="mx-auto block max-h-[340px] w-full object-contain"
-            />
+            {file && isVideoFile(file) ? (
+              <video
+                src={preview}
+                controls
+                playsInline
+                className="mx-auto block max-h-[340px] w-full object-contain"
+              />
+            ) : (
+              <SmartImg
+                src={preview}
+                alt="미리보기"
+                className="mx-auto block max-h-[340px] w-full object-contain"
+              />
+            )}
             <button
               type="button"
               onClick={clearFile}
-              aria-label="사진 제거"
+              aria-label="첨부 제거"
               className="tappable absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm hover:bg-black/70"
             >
               <IconClose className="h-[18px] w-[18px]" />
@@ -174,7 +183,7 @@ export default function UploadPage() {
             className="tappable mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--bg-soft)] py-2.5 text-[13px] font-semibold text-[var(--text)] hover:bg-[var(--line)]"
           >
             <IconCamera className="h-[18px] w-[18px]" />
-            다른 사진 선택
+            다른 파일 선택
           </button>
         </div>
       ) : (
@@ -197,11 +206,11 @@ export default function UploadPage() {
           <span className="block">
             <IconCamera className="mx-auto mb-2 h-10 w-10" />
             <span className="font-semibold text-[var(--text)]">
-              탭해서 사진 선택
+              탭해서 사진·영상 선택
             </span>
             <br />
             <span className="break-keep text-[11.5px] text-[var(--muted)]">
-              끌어다 놓아도 돼요 · JPG · PNG · HEIC
+              끌어다 놓아도 돼요 · JPG · PNG · HEIC · MP4(30MB)
             </span>
           </span>
         </button>

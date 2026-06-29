@@ -121,7 +121,7 @@ export interface CursorPage<T> {
 export async function fetchAll<T>(
   path: string,
   opts: FetchOptions = {},
-  pageSize = 100,
+  pageSize = 30, // 백엔드 MAX_PAGE_LIMIT=30 — 초과 시 400. 이 값을 넘기지 말 것.
 ): Promise<T[]> {
   const sep = path.includes("?") ? "&" : "?";
   const out: T[] = [];
