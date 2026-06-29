@@ -213,10 +213,21 @@ export default function GalleryPage() {
               style={{ animationDelay: `${Math.min(i, 11) * 28}ms` }}
               className="tappable animate-fade-up group relative aspect-[4/5] overflow-hidden rounded-xl bg-[var(--bg-soft)]"
             >
-              <SmartImg
-                src={imageSrc(p.thumbnailUrl ?? p.imageUrl)}
-                className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
-              />
+              {/* 동영상은 첫 프레임을 <video>로 보여준다 (서버 썸네일이 placeholder일 수 있어 원본 사용). */}
+              {isVideoPhoto(p) ? (
+                <video
+                  src={imageSrc(p.imageUrl) + "#t=0.1"}
+                  preload="metadata"
+                  muted
+                  playsInline
+                  className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+                />
+              ) : (
+                <SmartImg
+                  src={imageSrc(p.thumbnailUrl ?? p.imageUrl)}
+                  className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+                />
+              )}
               {/* 동영상: 중앙 재생 아이콘 + 우상단 길이 배지 */}
               {isVideoPhoto(p) && (
                 <>
