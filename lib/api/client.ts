@@ -11,6 +11,16 @@ const RAW_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/+$/, ""
 /** dev-only: API base가 없으면 mock 모드 (운영에서는 항상 false) */
 export const USE_MOCK = RAW_BASE === "";
 
+// 프로덕션 안전장치: 실서버 URL 없이 빌드되면 mock이 그대로 배포돼
+// 가짜 사진이 운영에 노출된다. dev에서는 mock 모드를 허용하되,
+// production 빌드에서는 NEXT_PUBLIC_API_BASE_URL을 강제해 빌드를 실패시킨다.
+if (USE_MOCK && process.env.NODE_ENV === "production") {
+  throw new Error(
+    "NEXT_PUBLIC_API_BASE_URL이 설정되지 않았습니다. " +
+      "프로덕션 빌드는 실서버 URL이 반드시 필요합니다(mock 배포 방지).",
+  );
+}
+
 /**
  * 실제 호출에 쓸 base URL.
  * 모바일/LAN 테스트: base가 localhost인데 브라우저는 맥북 IP로 접속 중이면
@@ -82,7 +92,9 @@ export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promis
     let message = `요청에 실패했어요. (${res.status})`;
     try {
       const body = (await res.json()) as ApiErrorBody;
-      message = body.details || body.message || message;
+      // 백엔드 계약: message=사용자용 한국어, details=내부 디버깅용(영문 예외).
+      // 사용자에게는 message를 우선 노출하고, 없을 때만 details로 보강한다.
+      message = body.message || body.details || message;
     } catch {
       /* 본문이 JSON이 아니면 기본 메시지 유지 */
     }
