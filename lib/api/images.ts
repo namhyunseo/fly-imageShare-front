@@ -6,7 +6,7 @@
 // ============================================================
 import type { AffiliationType, Photo } from "../types";
 import type { Day } from "../event";
-import { USE_MOCK, apiFetch } from "./client";
+import { USE_MOCK, apiFetch, fetchAll } from "./client";
 import { mockDelete, mockGetImage, mockGetImages, mockUpdate, mockUpload } from "./mock";
 
 /** 백엔드 ImageResponse (계약) — affiliation 모델 기준 */
@@ -52,10 +52,14 @@ export function mapImage(r: ImageResponse): Photo {
   };
 }
 
-/** 최신순 사진 목록 (공개 — 토큰 불필요) */
+/**
+ * 최신순 사진 목록 (공개 — 토큰 불필요).
+ * 백엔드가 커서 페이지(기본 30건) 응답으로 전환됨 → 전 페이지를 모아 반환한다.
+ * (페이징 UI는 보류; 기존 전체 로드 UX 유지)
+ */
 export async function getImages(): Promise<Photo[]> {
   if (USE_MOCK) return mockGetImages();
-  const list = await apiFetch<ImageResponse[]>("/images");
+  const list = await fetchAll<ImageResponse>("/images");
   return list.map(mapImage);
 }
 
