@@ -11,14 +11,11 @@ import { canManagePhoto, affiliationOf } from "@/lib/types";
 import type { Photo, Tag } from "@/lib/types";
 import { DAYS, DAY_LABEL, currentDay, type Day } from "@/lib/event";
 import { hasProfanity } from "@/lib/moderation";
+import { isMediaFile, isVideoFile, isVideoPhoto, MAX_VIDEO_BYTES } from "@/lib/media";
 import { IconCamera, IconWarning } from "@/components/icons";
 
 const MAX = 50;
 const EMOJIS = ["🙏", "🔥", "😂", "❤️", "🙌", "✨", "🍚", "📸", "☀️", "🎉"];
-
-function isImage(f: File): boolean {
-  return f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name);
-}
 
 // 수정 화면 — 업로드 화면과 같은 문법(사진 교체 · 코멘트 · day).
 // 진입 권한은 업로더 본인·관리자만. 갤러리 상세 모달의 "수정하기"로 들어온다.
@@ -70,8 +67,12 @@ export default function EditPage() {
   function pick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!isImage(f)) {
-      setError("이미지 파일만 올릴 수 있어요. (JPG · PNG · HEIC)");
+    if (!isMediaFile(f)) {
+      setError("사진 또는 MP4 동영상만 올릴 수 있어요.");
+      return;
+    }
+    if (isVideoFile(f) && f.size > MAX_VIDEO_BYTES) {
+      setError("동영상 용량이 너무 커요. 30MB 이하만 올릴 수 있어요.");
       return;
     }
     if (file && preview) URL.revokeObjectURL(preview);
@@ -152,20 +153,28 @@ export default function EditPage() {
       <input
         ref={fileRef}
         type="file"
-        accept="image/png,image/jpeg,image/heic,image/heif,.heic,.heif"
+        accept="image/png,image/jpeg,image/heic,image/heif,.heic,.heif,video/mp4,.mp4"
         className="hidden"
         onChange={pick}
       />
 
       <div className="mb-4">
         <div className="relative overflow-hidden rounded-[var(--radius)] border border-[var(--line)] bg-[var(--bg-soft)]">
-          {preview && (
-            <SmartImg
-              src={preview}
-              alt="미리보기"
-              className="mx-auto block max-h-[340px] w-full object-contain"
-            />
-          )}
+          {preview &&
+            ((file ? isVideoFile(file) : isVideoPhoto(photo)) ? (
+              <video
+                src={preview}
+                controls
+                playsInline
+                className="mx-auto block max-h-[340px] w-full object-contain"
+              />
+            ) : (
+              <SmartImg
+                src={preview}
+                alt="미리보기"
+                className="mx-auto block max-h-[340px] w-full object-contain"
+              />
+            ))}
         </div>
         <button
           type="button"
@@ -173,7 +182,7 @@ export default function EditPage() {
           className="tappable mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--bg-soft)] py-2.5 text-[13px] font-semibold text-[var(--text)] hover:bg-[var(--line)]"
         >
           <IconCamera className="h-[18px] w-[18px]" />
-          사진 교체
+          파일 교체
         </button>
       </div>
 

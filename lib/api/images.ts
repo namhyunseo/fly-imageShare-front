@@ -4,7 +4,7 @@
 // 업로드는 comment + file 만 보낸다. 오이코스는 서버가 로그인
 // 사용자 세션으로 결정한다(클라가 보내지 않음).
 // ============================================================
-import type { AffiliationType, Photo } from "../types";
+import type { AffiliationType, MediaType, Photo } from "../types";
 import type { Day } from "../event";
 import { USE_MOCK, apiFetch, fetchAll } from "./client";
 import { mockDelete, mockGetImage, mockGetImages, mockUpdate, mockUpload } from "./mock";
@@ -13,6 +13,8 @@ import { mockDelete, mockGetImage, mockGetImages, mockUpdate, mockUpload } from 
 export interface ImageResponse {
   id: number;
   comment: string;
+  mediaType?: string;
+  durationSeconds?: number | null;
   day?: string;
   tagKey?: string;
   tagName?: string;
@@ -35,6 +37,8 @@ export function mapImage(r: ImageResponse): Photo {
   return {
     id: String(r.id),
     comment: r.comment,
+    mediaType: (r.mediaType as MediaType | undefined) ?? "IMAGE",
+    durationSeconds: r.durationSeconds ?? undefined,
     affiliationKey: r.affiliationKey,
     affiliationName: r.affiliationName ?? "",
     affiliationType: r.affiliationType as AffiliationType | undefined,

@@ -10,6 +10,7 @@ import { imageSrc } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
 import { IconGallery, IconUpload } from "@/components/icons";
 import { canPost, affiliationOf } from "@/lib/types";
+import { isVideoPhoto, formatDuration } from "@/lib/media";
 import type { Photo } from "@/lib/types";
 import { DAYS, DAY_LABEL, type Day } from "@/lib/event";
 
@@ -216,6 +217,23 @@ export default function GalleryPage() {
                 src={imageSrc(p.thumbnailUrl ?? p.imageUrl)}
                 className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
               />
+              {/* 동영상: 중앙 재생 아이콘 + 우상단 길이 배지 */}
+              {isVideoPhoto(p) && (
+                <>
+                  <span className="pointer-events-none absolute inset-0 grid place-items-center">
+                    <span className="grid h-10 w-10 place-items-center rounded-full bg-black/45 backdrop-blur-sm">
+                      <svg viewBox="0 0 24 24" className="ml-0.5 h-5 w-5 fill-white" aria-hidden="true">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </span>
+                  </span>
+                  {formatDuration(p.durationSeconds) && (
+                    <span className="pointer-events-none absolute right-1.5 top-1.5 rounded-full bg-black/55 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm">
+                      {formatDuration(p.durationSeconds)}
+                    </span>
+                  )}
+                </>
+              )}
               <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/55 to-transparent" />
               <span className="pointer-events-none absolute bottom-1.5 left-1.5 flex items-center gap-1">
                 <span className="rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
